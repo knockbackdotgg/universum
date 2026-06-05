@@ -1,0 +1,2 @@
+redis:
+  uri: 'redis://localhost:6379' # URI examples: redis://localhost:6379, redis://:password@host:6379/0

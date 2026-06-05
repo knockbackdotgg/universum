@@ -1,9 +1,9 @@
-package org.tainorazum.universum.game.arena
+package org.tainorazum.universum.engine.arena
 
 import net.kyori.adventure.text.Component
 import org.bukkit.Location
-import org.tainorazum.universum.game.arena.database.ArenaDatabaseManager
-import org.tainorazum.universum.game.arena.database.ArenaTemplate
+import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
+import org.tainorazum.universum.engine.arena.database.ArenaTemplate
 import java.io.File
 import java.util.concurrent.CompletableFuture
 
@@ -64,7 +64,7 @@ class ArenaManager {
             x += xOffset
         }
 
-        val arena = Arena(id, at.id, at.schematic, shiftedCenter)
+        val arena = Arena(id, at.id, at.schematic, shiftedCenter, at.radius)
         arenas.add(arena)
 
         return arena

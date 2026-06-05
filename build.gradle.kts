@@ -43,6 +43,12 @@ dependencies {
     // Database Driver (e.g., MySQL or MariaDB driver) (db)
     implementation("com.mysql:mysql-connector-j:8.3.0")
 
+    // Gson for JSON (kit serialization)
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Redis client (Lettuce)
+    implementation("io.lettuce:lettuce-core:6.2.4.RELEASE")
+
 }
 
 kotlin {

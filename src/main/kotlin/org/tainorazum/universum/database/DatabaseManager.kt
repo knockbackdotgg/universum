@@ -7,6 +7,12 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tainorazum.universum.database.example.EX_PlayerData
+import org.tainorazum.universum.engine.arena.database.DB_ArenaLocations
+import org.tainorazum.universum.engine.arena.database.DB_Arenas
+import org.tainorazum.universum.engine.arena.database.DB_ArenaGametypes
+import org.tainorazum.universum.engine.arena.database.DB_ArenaKits
+import org.tainorazum.universum.engine.kit.database.DB_Kits
+import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import java.util.concurrent.CompletableFuture
 
 class DatabaseManager {
@@ -38,6 +44,12 @@ class DatabaseManager {
 
     fun createTables() {
         create(EX_PlayerData)
+        create(DB_Arenas)
+        create(DB_ArenaLocations)
+        create(DB_Kits)
+        create(DB_ArenaGametypes)
+        create(DB_ArenaKits)
+        create(DB_Stats)
     }
 
     fun create(table: Table) {

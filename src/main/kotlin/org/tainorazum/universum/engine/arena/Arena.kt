@@ -1,6 +1,5 @@
-package org.tainorazum.universum.game.arena
+package org.tainorazum.universum.engine.arena
 
-import com.sk89q.worldedit.EditSession
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats
@@ -17,7 +16,8 @@ open class Arena(
     val identifier: String,
     val templateIdentifier: String,
     val schematic: ByteArray,
-    val centerLocation: Location
+    val centerLocation: Location,
+    val radius: Double,
 ) {
 
     /**
@@ -36,7 +36,7 @@ open class Arena(
 
     /**
      * @usage Resets the arena to its original schematic.
-     * @return A CompletableFuture that completes on the main thread when done.
+     * @return A CompletableFuture that completes when done.
      */
     fun reset() : CompletableFuture<Boolean> {
         return pasteSchematicTo(schematic, centerLocation)
