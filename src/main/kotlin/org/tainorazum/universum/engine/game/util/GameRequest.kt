@@ -6,4 +6,5 @@ import kotlin.uuid.Uuid
 data class GameRequest(
     val identifier: String,
     val gameType: GameType,
+    val arenaName: String
 )

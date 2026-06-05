@@ -1,5 +1,6 @@
 package org.tainorazum.universum
 
+import com.sk89q.minecraft.util.commands.Console
 import gg.flyte.twilight.scheduler.delay
 import gg.flyte.twilight.twilight
 import org.bukkit.plugin.java.JavaPlugin
@@ -9,6 +10,8 @@ import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.redis.RedisSubscriber
 import org.tainorazum.universum.redis.listeners.RM_GameRequest
+import org.tainorazum.universum.server.Server
+import org.tainorazum.universum.server.ServerType
 import revxrsal.commands.bukkit.BukkitLamp
 import java.util.logging.Level
 
@@ -16,6 +19,7 @@ class Universum : JavaPlugin() {
 
     companion object {
         lateinit var instance: Universum private set
+        lateinit var server: Server private set
 
         var dbm: DatabaseManager? = null
             private set
@@ -25,18 +29,22 @@ class Universum : JavaPlugin() {
     }
 
     override fun onEnable() {
+
+        // server
         instance = this
-
         saveDefaultConfig()
+        registerServer()
 
+        // dependencies & utils
         twilight(this)
         val lamp = BukkitLamp.builder(this).build()
 
+        // redis
         RedisManager.init()
-        // register & start redis pub/sub listeners
-        RM_GameRequest()
         RedisSubscriber.start(this)
+        RM_GameRequest()
 
+        // database
         try {
             dbm = DatabaseManager()
             dbm?.init()
@@ -47,9 +55,11 @@ class Universum : JavaPlugin() {
             return
         }
 
+        // managers
         arenaManager = ArenaManager()
         gameManager = GameManager()
 
+        // commands
         // lamp.register(Cmd())
         // lamp.register(Landmarks())
         // Listeners()
@@ -65,9 +75,23 @@ class Universum : JavaPlugin() {
         RedisManager.close()
         RedisSubscriber.stop()
 
-        delay(5000) {
+        delay(3000) {
             server.shutdown() // server can't run without this plugin
+        }
+    }
+
+    private fun registerServer() {
+
+        try {
+            val identifier = config.getString("server.identifier")!!
+            val type = ServerType.valueOf(config.getString("server.type")!!)
+
+            Companion.server = Server(identifier, type)
+        } catch (e: Exception) {
+            logger.log(Level.SEVERE, "Could not register server! Disabling plugin...", e)
+            server.pluginManager.disablePlugin(this)
         }
 
     }
+
 }
