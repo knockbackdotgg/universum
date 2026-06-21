@@ -6,6 +6,8 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.tainorazum.universum.Universum
+// select/insert are used by DB_ServerSettings.ensureDefaults(), keep imports if needed elsewhere
 import org.tainorazum.universum.database.example.EX_PlayerData
 import org.tainorazum.universum.engine.arena.database.DB_ArenaLocations
 import org.tainorazum.universum.engine.arena.database.DB_Arenas
@@ -13,6 +15,12 @@ import org.tainorazum.universum.engine.arena.database.DB_ArenaGametypes
 import org.tainorazum.universum.engine.arena.database.DB_ArenaKits
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.server.DB_Server
+import org.tainorazum.universum.server.npc.database.DB_LobbyNPC
+import org.tainorazum.universum.server.npc.database.DB_NPCAction
+import org.tainorazum.universum.server.npc.database.DB_NPCHologram
+import org.tainorazum.universum.server.setting.DB_ServerSettings
+import org.tainorazum.universum.server.visual.DB_VisualServer
 import java.util.concurrent.CompletableFuture
 
 class DatabaseManager {
@@ -23,9 +31,9 @@ class DatabaseManager {
 
     fun init() {
         val config = HikariConfig().apply {
-            jdbcUrl = "jdbc:mysql://localhost:3306/minecraft_db"
-            username = "root"
-            password = "password"
+            jdbcUrl = Universum.instance.config.getString("database.url")
+            username = Universum.instance.config.getString("database.username")
+            password = Universum.instance.config.getString("database.password")
             driverClassName = "com.mysql.cj.jdbc.Driver"
 
             maximumPoolSize = 10
@@ -40,6 +48,8 @@ class DatabaseManager {
         Database.connect(dataSource)
 
         createTables()
+
+        DB_Stats.startAutoFlush(30)
     }
 
     fun createTables() {
@@ -50,12 +60,22 @@ class DatabaseManager {
         create(DB_ArenaGametypes)
         create(DB_ArenaKits)
         create(DB_Stats)
+        create(DB_VisualServer)
+        create(DB_Server)
+        create(DB_ServerSettings)
+        create(DB_LobbyNPC)
+        create(DB_NPCAction)
+        create(DB_NPCHologram)
     }
 
     fun create(table: Table) {
         CompletableFuture.runAsync {
             transaction {
                 SchemaUtils.create(table)
+                // If we just created the server settings table, ensure every enum value exists with its default
+                if (table === DB_ServerSettings) {
+                    DB_ServerSettings.ensureDefaults()
+                }
             }
         }
     }

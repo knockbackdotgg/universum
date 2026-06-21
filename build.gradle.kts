@@ -48,6 +48,8 @@ dependencies {
 
     // Redis client (Lettuce)
     implementation("io.lettuce:lettuce-core:6.2.4.RELEASE")
+    // ProtocolLib for packet-level listeners (compileOnly; server should provide the plugin)
+    compileOnly("net.dmulloy2:ProtocolLib:5.4.0")
 
 }
 

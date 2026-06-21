@@ -32,7 +32,6 @@ class FFA(
     fun addPlayer(player: Player) {
         players.add(player)
 
-
     }
 
     fun removePlayer(player: Player) {
