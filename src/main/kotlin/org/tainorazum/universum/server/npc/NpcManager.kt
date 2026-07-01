@@ -24,26 +24,24 @@ object NpcManager {
 
     fun init() {
         // load from DB and spawn on main thread
-        val list = NpcRepository.loadAll()
         npcCache.clear()
-        list.forEach { npc ->
-            npcCache[npc.id] = npc
-        }
-
-        Bukkit.getScheduler().runTask(Universum.instance) {
-            list.forEach { entity ->
-                spawnNpc(entity)
+        NpcRepository.loadAll().thenAccept { data ->
+            data.forEach { npc ->
+                npcCache[npc.id] = npc
+                Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                    spawnNpc(npc)
+                })
             }
         }
     }
 
     fun shutdown() {
         // despawn all
-        Bukkit.getScheduler().runTask(Universum.instance) {
+        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
             spawnedEntities.values.flatten().forEach { it.remove() }
             spawnedEntities.clear()
             entityToNpc.clear()
-        }
+        })
     }
 
     private fun spawnNpc(npc: NpcData) {
@@ -84,49 +82,55 @@ object NpcManager {
         entityToNpc[asEntity.entityId] = npc.id
 
         // spawn holograms
-        val holo = NpcRepository.loadHologramsFor(npc.id)
-        if (holo.isNotEmpty()) {
-            val holos = HologramService.spawnHologram(loc, holo)
-            spawnedEntities[npc.id]?.addAll(holos)
-            holos.forEach { entityToNpc[it.entityId] = npc.id }
+        NpcRepository.loadHologramsFor(npc.id).thenAccept { holograms ->
+            if (holograms.isNotEmpty()) {
+                val holos = HologramService.spawnHologram(loc, holograms)
+                spawnedEntities[npc.id]?.addAll(holos)
+                holos.forEach { entityToNpc[it.entityId] = npc.id }
+            }
         }
+
     }
 
     fun handleClick(playerUuid: UUID, entityId: Int, action: String) {
         val npcId = entityToNpc[entityId] ?: return
-        val actions = NpcRepository.loadActionsFor(npcId)
-        // execute actions matching action type
-        actions.filter { it.actionType.equals(action, true) }.sortedBy { it.order }
-            .forEach { act -> ActionExecutor.execute(playerUuid, act) }
+        NpcRepository.loadActionsFor(npcId).thenAccept { actions ->
+            actions.filter { it.actionType.equals(action, true) }.sortedBy { it.order }
+                .forEach { act -> ActionExecutor.execute(playerUuid, act) }
+        }
     }
 
     fun despawnNpc(npcId: Long) {
-        Bukkit.getScheduler().runTask(Universum.instance) {
+        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
             spawnedEntities[npcId]?.forEach { it.remove() }
             spawnedEntities[npcId]?.forEach { entityToNpc.remove(it.entityId) }
             spawnedEntities.remove(npcId)
             npcCache.remove(npcId)
-        }
+        })
     }
 
     fun reloadAndRespawn(npcId: Long? = null) {
-        Bukkit.getScheduler().runTask(Universum.instance) {
+        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
             if (npcId == null) {
                 // reload all
                 npcCache.keys.toList().forEach { despawnNpc(it) }
-                val list = NpcRepository.loadAll()
-                npcCache.clear()
-                list.forEach { npc ->
-                    npcCache[npc.id] = npc
-                    spawnNpc(npc)
+                NpcRepository.loadAll().thenAccept { data ->
+                    data.forEach { npc ->
+                        npcCache[npc.id] = npc
+                        spawnNpc(npc)
+                    }
                 }
+                npcCache.clear()
+
             } else {
                 // reload specific NPC
                 despawnNpc(npcId)
-                val npc = NpcRepository.loadAll().find { it.id == npcId } ?: return@runTask
-                npcCache[npc.id] = npc
-                spawnNpc(npc)
+                NpcRepository.loadAll().thenAccept { data ->
+                    val npc = data.find { it.id == npcId } ?: return@thenAccept
+                    npcCache[npc.id] = npc
+                    spawnNpc(npc)
+                }
             }
-        }
+        })
     }
 }

@@ -13,8 +13,34 @@ import java.util.concurrent.CompletableFuture
 import java.net.HttpURLConnection
 import java.net.URL
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.ConcurrentHashMap
 
 class VisualServerManager {
+
+    // In-memory cache: identifier -> (motd, favicon)
+    private data class VisualCache(
+        val motd: Component?,
+        val favicon: ByteArray?
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is VisualCache) return false
+            if (motd != other.motd) return false
+            if (favicon != null) {
+                if (other.favicon == null) return false
+                if (!favicon.contentEquals(other.favicon)) return false
+            } else if (other.favicon != null) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = motd?.hashCode() ?: 0
+            result = 31 * result + (favicon?.contentHashCode() ?: 0)
+            return result
+        }
+    }
+
+    private val cache = ConcurrentHashMap<String, VisualCache>()
 
     fun setMOTD(identifier: String, motd: Component): CompletableFuture<Boolean> {
         return dba {
@@ -23,18 +49,35 @@ class VisualServerManager {
                     it[DB_VisualServer.identifier] = identifier
                     it[DB_VisualServer.motd] = ComponentSerializer.serialize(motd)
                 }
+
+                // invalidate cache for this identifier
+                cache.remove(identifier)
                 true
             }
         }
     }
 
     fun getMOTD(identifier: String): CompletableFuture<Component?> {
+        // cache hit
+        val cached = cache[identifier]
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached.motd)
+        }
+
+        // cache miss: fetch from DB and cache
         return dba {
             transaction {
-                DB_VisualServer.selectAll()
+                val row = DB_VisualServer.selectAll()
                     .where { DB_VisualServer.identifier eq identifier }
-                    .map { ComponentSerializer.deserialize(it[DB_VisualServer.motd]) }
                     .singleOrNull()
+
+                val motd = row?.let { ComponentSerializer.deserialize(it[DB_VisualServer.motd]) }
+                val favicon = row?.let { it[DB_VisualServer.favicon]?.bytes }
+
+                // populate cache
+                cache[identifier] = VisualCache(motd, favicon)
+
+                motd
             }
         }
     }
@@ -48,19 +91,47 @@ class VisualServerManager {
                     it[DB_VisualServer.identifier] = identifier
                     it[DB_VisualServer.favicon] = blob
                 }
+
+                // invalidate cache for this identifier
+                cache.remove(identifier)
                 true
             }
         }
     }
 
     fun getFavicon(identifier: String): CompletableFuture<ByteArray?> {
+        // cache hit
+        val cached = cache[identifier]
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached.favicon)
+        }
+
+        // cache miss: fetch from DB and cache
         return dba {
             transaction {
-                DB_VisualServer.selectAll()
+                val row = DB_VisualServer.selectAll()
                     .where { DB_VisualServer.identifier eq identifier }
-                    .map { row -> row[DB_VisualServer.favicon]?.bytes }
                     .singleOrNull()
+
+                val motd = row?.let { ComponentSerializer.deserialize(it[DB_VisualServer.motd]) }
+                val favicon = row?.let { it[DB_VisualServer.favicon]?.bytes }
+
+                // populate cache
+                cache[identifier] = VisualCache(motd, favicon)
+
+                favicon
             }
+        }
+    }
+
+    /**
+     * Invalidate cache for a specific identifier or all if identifier is null.
+     */
+    fun invalidateCache(identifier: String? = null) {
+        if (identifier == null) {
+            cache.clear()
+        } else {
+            cache.remove(identifier)
         }
     }
 

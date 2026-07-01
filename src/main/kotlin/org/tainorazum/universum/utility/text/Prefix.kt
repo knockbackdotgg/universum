@@ -1,9 +1,6 @@
 package org.tainorazum.universum.utility.text
 
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.TextDecoration
-import net.tainorazum.core.Core
-import net.tainorazum.core.util.Colours
 
 object Prefix {
 

@@ -4,6 +4,8 @@ import com.destroystokyo.paper.event.server.PaperServerListPingEvent
 import gg.flyte.twilight.event.event
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.Universum.Companion
+import org.tainorazum.universum.server.setting.DB_ServerSettings
+import org.tainorazum.universum.server.setting.ServerSetting
 import java.util.logging.Level
 
 class ServerManager {
@@ -14,8 +16,10 @@ class ServerManager {
         registerServer()
 
         event<PaperServerListPingEvent> {
-            Universum.visualServerManager.getMOTD().thenAccept { motd ->
-                if (motd != null) motd(motd)
+            DB_ServerSettings.get(ServerSetting.CURRENT_MOTD).thenAccept { currentMotd ->
+                Universum.visualServerManager.getMOTD(currentMotd.toString()).thenAccept { motd ->
+                    if (motd != null) motd(motd)
+                }
             }
         }
     }

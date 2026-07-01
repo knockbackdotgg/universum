@@ -1,7 +1,6 @@
 package org.tainorazum.universum.server.npc.database
 
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.PrimaryKey
 
 object DB_NPCAction : Table("npc_actions") {
     val id = long("id").autoIncrement()

@@ -17,6 +17,7 @@ import org.tainorazum.universum.server.Server
 import org.tainorazum.universum.server.ServerManager
 import org.tainorazum.universum.server.ServerType
 import org.tainorazum.universum.server.npc.NpcManager
+import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.VisualServerManager
 import revxrsal.commands.bukkit.BukkitLamp
 import java.util.logging.Level
@@ -71,6 +72,14 @@ class Universum : JavaPlugin() {
         gameManager = GameManager()
         serverManager = ServerManager()
         visualServerManager = VisualServerManager()
+
+        // load server settings and visual data into cache
+        try {
+            DB_ServerSettings.loadAllSettingsIntoCache().get()
+            logger.info("Successfully loaded server settings into cache.")
+        } catch (e: Exception) {
+            logger.warning("Failed to load server settings into cache: ${e.message}")
+        }
 
         try {
             NpcManager.init()
