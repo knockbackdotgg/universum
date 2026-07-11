@@ -7,6 +7,7 @@ import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
+import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockBurnEvent
 import org.bukkit.event.block.BlockEvent
@@ -80,6 +81,7 @@ import org.bukkit.event.world.StructureGrowEvent
 import org.bukkit.event.world.WorldLoadEvent
 import org.bukkit.event.world.WorldSaveEvent
 import org.bukkit.event.world.WorldUnloadEvent
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.arena.Arena
 import org.tainorazum.universum.engine.game.gametypes.GameType
 import java.util.UUID
@@ -100,11 +102,48 @@ open class Game(
     // events
 
     init {
+        registerEventListener()
+    }
 
-        event<Event> {
-            dispatchEvent(this)
+    private fun registerEventListener() {
+        val listener = object : Listener {}
+        val eventClasses = listOf(
+            BlockBreakEvent::class.java, BlockPlaceEvent::class.java, BlockBurnEvent::class.java, BlockFadeEvent::class.java,
+            BlockFormEvent::class.java, BlockFromToEvent::class.java, BlockGrowEvent::class.java, BlockIgniteEvent::class.java,
+            BlockPhysicsEvent::class.java, BlockSpreadEvent::class.java, BlockPistonExtendEvent::class.java, BlockPistonRetractEvent::class.java,
+            PlayerJoinEvent::class.java, PlayerQuitEvent::class.java, PlayerKickEvent::class.java, PlayerDeathEvent::class.java,
+            PlayerMoveEvent::class.java, PlayerTeleportEvent::class.java, AsyncPlayerChatEvent::class.java,
+            PlayerInteractEvent::class.java, PlayerInteractEntityEvent::class.java, PlayerDropItemEvent::class.java,
+            PlayerRespawnEvent::class.java, PlayerItemConsumeEvent::class.java, PlayerSwapHandItemsEvent::class.java,
+            PlayerFishEvent::class.java, PlayerCommandPreprocessEvent::class.java, PlayerBedEnterEvent::class.java, PlayerBedLeaveEvent::class.java,
+            EntityDamageEvent::class.java, EntityDamageByEntityEvent::class.java, EntityDeathEvent::class.java,
+            CreatureSpawnEvent::class.java, EntityTargetEvent::class.java, EntityCombustEvent::class.java,
+            EntityExplodeEvent::class.java, EntityInteractEvent::class.java, ProjectileLaunchEvent::class.java,
+            ProjectileHitEvent::class.java, EntityTameEvent::class.java, EntityPickupItemEvent::class.java,
+            InventoryClickEvent::class.java, InventoryCloseEvent::class.java, InventoryOpenEvent::class.java,
+            InventoryDragEvent::class.java, FurnaceBurnEvent::class.java, FurnaceSmeltEvent::class.java,
+            PrepareItemCraftEvent::class.java, CraftItemEvent::class.java, WeatherChangeEvent::class.java, ThunderChangeEvent::class.java,
+            ChunkLoadEvent::class.java, ChunkUnloadEvent::class.java, WorldSaveEvent::class.java, WorldLoadEvent::class.java,
+            WorldUnloadEvent::class.java, StructureGrowEvent::class.java, ServerListPingEvent::class.java,
+            PluginEnableEvent::class.java, PluginDisableEvent::class.java, VehicleEnterEvent::class.java,
+            VehicleExitEvent::class.java, VehicleMoveEvent::class.java, VehicleDamageEvent::class.java,
+            VehicleCreateEvent::class.java, VehicleDestroyEvent::class.java, HangingBreakEvent::class.java,
+            HangingPlaceEvent::class.java, EnchantItemEvent::class.java, PortalCreateEvent::class.java
+        )
+
+        eventClasses.forEach { eventClass ->
+            try {
+                Universum.instance.server.pluginManager.registerEvent(
+                    eventClass,
+                    listener,
+                    org.bukkit.event.EventPriority.NORMAL,
+                    { _, event -> dispatchEvent(event) },
+                    Universum.instance
+                )
+            } catch (e: Exception) {
+                Universum.instance.logger.warning("Failed to register event listener for ${eventClass.simpleName}: ${e.message}")
+            }
         }
-
     }
 
     // blocks

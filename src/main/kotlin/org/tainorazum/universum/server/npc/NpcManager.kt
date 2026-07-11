@@ -83,11 +83,13 @@ object NpcManager {
 
         // spawn holograms
         NpcRepository.loadHologramsFor(npc.id).thenAccept { holograms ->
-            if (holograms.isNotEmpty()) {
-                val holos = HologramService.spawnHologram(loc, holograms)
-                spawnedEntities[npc.id]?.addAll(holos)
-                holos.forEach { entityToNpc[it.entityId] = npc.id }
-            }
+            Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                if (holograms.isNotEmpty()) {
+                    val holos = HologramService.spawnHologram(loc, holograms)
+                    spawnedEntities[npc.id]?.addAll(holos)
+                    holos.forEach { entityToNpc[it.entityId] = npc.id }
+                }
+            })
         }
 
     }
@@ -115,10 +117,12 @@ object NpcManager {
                 // reload all
                 npcCache.keys.toList().forEach { despawnNpc(it) }
                 NpcRepository.loadAll().thenAccept { data ->
-                    data.forEach { npc ->
-                        npcCache[npc.id] = npc
-                        spawnNpc(npc)
-                    }
+                    Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                        data.forEach { npc ->
+                            npcCache[npc.id] = npc
+                            spawnNpc(npc)
+                        }
+                    })
                 }
                 npcCache.clear()
 
@@ -126,11 +130,13 @@ object NpcManager {
                 // reload specific NPC
                 despawnNpc(npcId)
                 NpcRepository.loadAll().thenAccept { data ->
-                    val npc = data.find { it.id == npcId } ?: return@thenAccept
-                    npcCache[npc.id] = npc
-                    spawnNpc(npc)
-                }
-            }
-        })
-    }
+                    Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                        val npc = data.find { it.id == npcId } ?: return@Runnable
+                        npcCache[npc.id] = npc
+                        spawnNpc(npc)
+                   })
+               }
+           }
+       })
+   }
 }

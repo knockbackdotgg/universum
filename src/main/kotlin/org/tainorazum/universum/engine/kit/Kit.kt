@@ -11,6 +11,9 @@ data class Kit(
     val id: String
 ) {
 
+    /**
+     * @Usage Apply usable kit to player.
+     */
     fun applyToPlayer(player: Player): CompletableFuture<Boolean> {
         return getKitJson(id, player.uniqueId).thenCompose { personalJson ->
             if (personalJson != null) {

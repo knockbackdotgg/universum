@@ -5,7 +5,7 @@ import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.game.util.GameRequest
 import org.tainorazum.universum.engine.game.util.OngoingGame
 import org.tainorazum.universum.redis.RedisManager
-import org.tainorazum.universum.server.Server
+import org.tainorazum.universum.server.server.Server
 
 class GameManager {
 

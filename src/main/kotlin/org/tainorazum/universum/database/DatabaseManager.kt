@@ -15,13 +15,12 @@ import org.tainorazum.universum.engine.arena.database.DB_ArenaGametypes
 import org.tainorazum.universum.engine.arena.database.DB_ArenaKits
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
-import org.tainorazum.universum.server.DB_Server
+import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.npc.database.DB_LobbyNPC
 import org.tainorazum.universum.server.npc.database.DB_NPCAction
 import org.tainorazum.universum.server.npc.database.DB_NPCHologram
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
-import java.util.concurrent.CompletableFuture
 
 class DatabaseManager {
 
@@ -69,13 +68,11 @@ class DatabaseManager {
     }
 
     fun create(table: Table) {
-        CompletableFuture.runAsync {
-            transaction {
-                SchemaUtils.create(table)
-                // If we just created the server settings table, ensure every enum value exists with its default
-                if (table === DB_ServerSettings) {
-                    DB_ServerSettings.ensureDefaults()
-                }
+        transaction {
+            SchemaUtils.create(table)
+            // If we just created the server settings table, ensure every enum value exists with its default
+            if (table === DB_ServerSettings) {
+                DB_ServerSettings.ensureDefaults()
             }
         }
     }

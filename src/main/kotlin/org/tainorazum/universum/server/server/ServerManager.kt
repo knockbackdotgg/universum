@@ -1,9 +1,8 @@
-package org.tainorazum.universum.server
+package org.tainorazum.universum.server.server
 
 import com.destroystokyo.paper.event.server.PaperServerListPingEvent
 import gg.flyte.twilight.event.event
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.Universum.Companion
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
 import java.util.logging.Level
@@ -21,6 +20,7 @@ class ServerManager {
                     if (motd != null) motd(motd)
                 }
             }
+            maxPlayers = numPlayers+1
         }
     }
 

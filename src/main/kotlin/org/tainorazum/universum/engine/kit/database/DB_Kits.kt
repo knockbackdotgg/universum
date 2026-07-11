@@ -106,6 +106,9 @@ object DB_Kits : Table("db_kits") {
         return true
     }
 
+    /**
+     * @Usage Save personal kit as server Player.
+     */
     fun saveKitFromPlayer(id: String, name: Component, owner: UUID?, player: Player): CompletableFuture<Boolean> {
         return snapshotPlayerInventory(player).thenCompose { snapshot ->
             dba {
@@ -114,6 +117,9 @@ object DB_Kits : Table("db_kits") {
         }
     }
 
+    /**
+    * @Usage Save default kit as server Administrator.
+     */
     fun saveDefaultKitFromPlayer(id: String, name: Component, player: Player): CompletableFuture<Boolean> {
         return saveKitFromPlayer(id, name, null, player)
     }

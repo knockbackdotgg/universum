@@ -1,4 +1,4 @@
-package org.tainorazum.universum.server
+package org.tainorazum.universum.server.server
 
 import java.util.concurrent.CompletableFuture
 

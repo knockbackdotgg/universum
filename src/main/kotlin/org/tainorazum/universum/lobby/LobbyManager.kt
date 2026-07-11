@@ -1,5 +1,11 @@
 package org.tainorazum.universum.lobby
 
+import com.sk89q.worldedit.WorldEdit
+import com.sk89q.worldedit.bukkit.BukkitAdapter
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats
+import com.sk89q.worldedit.function.operation.Operations
+import com.sk89q.worldedit.math.BlockVector3
+import com.sk89q.worldedit.session.ClipboardHolder
 import gg.flyte.twilight.event.event
 import org.bukkit.Location
 import org.bukkit.block.Block
@@ -7,6 +13,7 @@ import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
+import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockBurnEvent
 import org.bukkit.event.block.BlockEvent
@@ -82,10 +89,25 @@ import org.bukkit.event.world.WorldSaveEvent
 import org.bukkit.event.world.WorldUnloadEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import java.io.ByteArrayInputStream
+import java.util.concurrent.CompletableFuture
+import kotlin.use
 
 class LobbyManager {
 
+    var success: CompletableFuture<Boolean> = CompletableFuture<Boolean>()
+        private set
+
     private val players = mutableListOf<Player>()
+
+    init {
+        registerEventListener()
+        build().thenAccept {
+            if(it) success.complete(true)
+        }
+    }
+
+    // interaction
 
     fun enter(player: Player): Boolean {
         return players.add(player)
@@ -95,12 +117,104 @@ class LobbyManager {
         return players.remove(player)
     }
 
-    init {
+    // map
 
-        event<Event> {
-            dispatchEvent(this)
+    /**
+     * Pastes a schematic from a byte array asynchronously using FastAsyncWorldEdit.
+     * @param schematicBytes The raw binary data of the schematic kept in memory.
+     * @param targetLocation The center of where the schematic should be pasted.
+     * @param ignoreAir If true, air blocks in the schematic won't overwrite existing blocks.
+     * @return A CompletableFuture<Boolean> that completes when done.
+     */
+    private fun build(
+    ): CompletableFuture<Boolean> {
+        val future = CompletableFuture<Boolean>()
+
+        val targetLocation = DB_Lobby.getCenterLocation()
+        val schematicBytes = DB_Lobby.getSchematicBytes()
+
+        CompletableFuture.allOf(targetLocation, schematicBytes).thenAccept {
+            val targetLocation = targetLocation.join()
+            val schematicBytes = schematicBytes.join()
+
+            val worldRef = BukkitAdapter.adapt(targetLocation.world)
+
+            val format = ClipboardFormats.findByAlias("schem")
+                ?: throw IllegalArgumentException("Unknown schematic format for memory buffer")
+
+            CompletableFuture.runAsync {
+                try {
+                    ByteArrayInputStream(schematicBytes).use { inputStream ->
+                        format.getReader(inputStream).use { reader ->
+                            val clipboard = reader.read() ?: throw NullPointerException("Clipboard returned null")
+
+                            val region = clipboard.region
+                            val schemCenter = region.center
+                            val originToCenterOffset = schemCenter.subtract(clipboard.origin.toVector3())
+
+                            val bukkitTargetVector = BlockVector3.at(targetLocation.x, targetLocation.y, targetLocation.z)
+                            val adjustedPastePosition = bukkitTargetVector.subtract(originToCenterOffset.toBlockPoint())
+
+                            WorldEdit.getInstance().newEditSession(worldRef).use { editSession ->
+
+                                val operation = ClipboardHolder(clipboard)
+                                    .createPaste(editSession)
+                                    .to(adjustedPastePosition)
+                                    .ignoreAirBlocks(false)
+                                    .copyEntities(false)
+                                    .build()
+
+                                Operations.complete(operation)
+                                editSession.flushQueue()
+                            }
+                        }
+                    }
+                    future.complete(true)
+                } catch (e: Exception) {
+                    future.completeExceptionally(e)
+                }
+            }
         }
 
+        return future
+    }
+
+
+    // events
+
+    private fun registerEventListener() {
+        val listener = object : Listener {}
+        val eventClasses = listOf(
+            BlockBreakEvent::class.java, BlockPlaceEvent::class.java, BlockBurnEvent::class.java, BlockFadeEvent::class.java,
+            BlockFormEvent::class.java, BlockFromToEvent::class.java, BlockGrowEvent::class.java, BlockIgniteEvent::class.java,
+            BlockPhysicsEvent::class.java, BlockSpreadEvent::class.java, BlockPistonExtendEvent::class.java, BlockPistonRetractEvent::class.java,
+            PlayerJoinEvent::class.java, PlayerQuitEvent::class.java, PlayerKickEvent::class.java, PlayerDeathEvent::class.java,
+            PlayerMoveEvent::class.java, PlayerTeleportEvent::class.java, AsyncPlayerChatEvent::class.java,
+            PlayerInteractEvent::class.java, PlayerInteractEntityEvent::class.java, PlayerDropItemEvent::class.java,
+            PlayerRespawnEvent::class.java, PlayerItemConsumeEvent::class.java, PlayerSwapHandItemsEvent::class.java,
+            PlayerFishEvent::class.java, PlayerCommandPreprocessEvent::class.java, PlayerBedEnterEvent::class.java, PlayerBedLeaveEvent::class.java,
+            EntityDamageEvent::class.java, EntityDamageByEntityEvent::class.java, EntityDeathEvent::class.java,
+            CreatureSpawnEvent::class.java, EntityTargetEvent::class.java, EntityCombustEvent::class.java,
+            EntityExplodeEvent::class.java, EntityInteractEvent::class.java, ProjectileLaunchEvent::class.java,
+            ProjectileHitEvent::class.java, EntityTameEvent::class.java, EntityPickupItemEvent::class.java,
+            InventoryClickEvent::class.java, InventoryCloseEvent::class.java, InventoryOpenEvent::class.java,
+            InventoryDragEvent::class.java, FurnaceBurnEvent::class.java, FurnaceSmeltEvent::class.java,
+            PrepareItemCraftEvent::class.java, CraftItemEvent::class.java, WeatherChangeEvent::class.java, ThunderChangeEvent::class.java
+        )
+
+        eventClasses.forEach { eventClass ->
+            try {
+                Universum.instance.server.pluginManager.registerEvent(
+                    eventClass,
+                    listener,
+                    org.bukkit.event.EventPriority.NORMAL,
+                    { _, event -> dispatchEvent(event) },
+                    Universum.instance
+                )
+            } catch (e: Exception) {
+                Universum.instance.logger.warning("Failed to register event listener for ${eventClass.simpleName}: ${e.message}")
+            }
+        }
     }
 
     // blocks

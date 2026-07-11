@@ -51,6 +51,8 @@ dependencies {
     // ProtocolLib for packet-level listeners (compileOnly; server should provide the plugin)
     compileOnly("net.dmulloy2:ProtocolLib:5.4.0")
 
+    compileOnly("net.luckperms:api:5.5")
+
 }
 
 kotlin {

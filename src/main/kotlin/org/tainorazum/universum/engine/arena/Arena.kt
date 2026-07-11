@@ -20,6 +20,19 @@ open class Arena(
     val radius: Double,
 ) {
 
+    fun create() : CompletableFuture<Boolean> {
+        val future = CompletableFuture<Boolean>()
+
+        build().thenAccept { success ->
+            if(success) {
+                future.complete(true)
+            } else {
+                future.complete(false)
+            }
+        }
+        return future
+    }
+
     /**
      * @usage First attempt to build the arena using the given schematic.
      * @return A CompletableFuture that completes on the main thread when done.

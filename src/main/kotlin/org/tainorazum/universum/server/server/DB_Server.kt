@@ -1,4 +1,4 @@
-package org.tainorazum.universum.server
+package org.tainorazum.universum.server.server
 
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
@@ -40,12 +40,12 @@ object DB_Server : Table("servers") {
             transaction {
                 DB_Server.selectAll()
                     .where {
-                        DB_Server.identifier eq id
+                        identifier eq id
                     }
                     .map {
                         Server(
-                            it[DB_Server.identifier],
-                            ServerType.valueOf(it[DB_Server.type])
+                            it[identifier],
+                            ServerType.valueOf(it[type])
                         )
                     }
                     .singleOrNull()
@@ -58,10 +58,10 @@ object DB_Server : Table("servers") {
             transaction {
                 DB_Server.selectAll()
                     .where {
-                        DB_Server.identifier eq id
+                        identifier eq id
                     }
                     .map {
-                        it[DB_Server.public]
+                        it[public]
                     }
                     .singleOrNull() ?: false
             }

@@ -1,10 +1,14 @@
 package org.tainorazum.universum.lobby.database
 
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.tainorazum.universum.engine.arena.database.DB_ArenaLocations
 import org.tainorazum.universum.utility.DatabaseUtil.dba
+import java.util.concurrent.CompletableFuture
+import kotlin.collections.set
 
 object DB_Lobby : Table("lobby") {
 
@@ -16,7 +20,13 @@ object DB_Lobby : Table("lobby") {
     val spawnpoint_pitch = float("spawnpoint_pitch")
     val spawnpoint_yaw = float("spawnpoint_yaw")
 
-    override val primaryKey = PrimaryKey(spawnpoint_world, spawnpoint_x, spawnpoint_y, spawnpoint_z, spawnpoint_pitch, spawnpoint_yaw)
+    val map_schematic = blob("map_schematic")
+
+    val center_x = double("center_x")
+    val center_y = double("center_y")
+    val center_z = double("center_z")
+
+    override val primaryKey = PrimaryKey(spawnpoint_world, spawnpoint_x, spawnpoint_y, spawnpoint_z, spawnpoint_pitch, spawnpoint_yaw, map_schematic)
 
     /**
      * Cached lobby world name. Loaded once at startup.
@@ -55,6 +65,36 @@ object DB_Lobby : Table("lobby") {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    fun getSchematicBytes() : CompletableFuture<ByteArray?> {
+        return dba {
+            transaction {
+                DB_Lobby.selectAll()
+                    .where { DB_Lobby.spawnpoint_world eq cachedLobbyWorld!! }
+                    .limit(1)
+                    .firstOrNull()
+                    ?.get(map_schematic)?.bytes
+            }
+        }
+    }
+
+    fun getCenterLocation(): CompletableFuture<Location> {
+        return dba {
+            transaction {
+                val row = DB_Lobby.selectAll()
+                    .where { DB_Lobby.spawnpoint_world eq cachedLobbyWorld!! }
+                    .limit(1)
+                    .firstOrNull()
+
+                Location(
+                    Bukkit.getWorld(cachedLobbyWorld!!),
+                    row?.get(DB_Lobby.center_x) ?: 0.0,
+                    row?.get(DB_Lobby.center_y) ?: 100.0,
+                    row?.get(DB_Lobby.center_z) ?: 0.0
+                )
+            }
         }
     }
 

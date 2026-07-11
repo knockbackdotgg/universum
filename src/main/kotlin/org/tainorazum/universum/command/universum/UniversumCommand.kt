@@ -6,89 +6,56 @@ import revxrsal.commands.annotation.Command
 import revxrsal.commands.annotation.CommandPlaceholder
 import revxrsal.commands.annotation.Subcommand
 import com.google.gson.Gson
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.ComponentLike
+import net.kyori.adventure.text.format.NamedTextColor
+import org.tainorazum.universum.command.universum.npc.CMD_U_Npc
+import org.tainorazum.universum.utility.text.Colours
+import revxrsal.commands.annotation.Optional
+import revxrsal.commands.bukkit.actor.BukkitCommandActor
+
+enum class UniversumCommandSub {
+
+    GENERAL,
+    NPC,
+
+    ;
+
+    private var cachedCommand: UniversumCommand? = null
+
+    fun getCommand(): UniversumCommand? {
+        if (cachedCommand != null) return cachedCommand
+        
+        cachedCommand = when (this) {
+            NPC -> CMD_U_Npc()
+            else -> null
+        }
+        return cachedCommand
+    }
+}
 
 @Command("universum", "uni", "u")
-class UniversumCommand {
+abstract class UniversumCommand(val sub: UniversumCommandSub?) {
 
-    private val gson = Gson()
+    open val gson = Gson()
+    open val tutorial : List<String> = mutableListOf<String>(
+        "/universum help <subject> - Receive help on a specific command.",
+    )
 
-    @CommandPlaceholder
-    fun help() {
+    @Subcommand("help")
+    fun help(actor: BukkitCommandActor, @Optional subArg: UniversumCommandSub = UniversumCommandSub.GENERAL) {
+        var component = Component.empty()
+            .append(Component.text("Universum command help (${subArg.name})", Colours.GREEN))
+            .append(Component.newline())
 
-    }
-
-    @Subcommand("npc create")
-    fun npcCreate(player: Player, name: String) {
-        val location = player.location
-        NpcModifier.createNpc(name, location)
-        player.sendMessage("§aCreated NPC '$name' at your location.")
-    }
-
-    @Subcommand("npc delete")
-    fun npcDelete(player: Player, npcId: Long) {
-        if (!player.hasPermission("universum.npc")) {
-            player.sendMessage("§cYou do not have permission.")
-            return
+        val tutorialList = subArg.getCommand()?.tutorial ?: tutorial
+        for(line in tutorialList) {
+            component = component
+                .append(Component.text(line, Colours.GREY))
+                .append(Component.newline())
         }
-        NpcModifier.deleteNpc(npcId)
-        player.sendMessage("§aDeleted NPC #$npcId.")
+        
+        actor.reply(component)
     }
 
-    @Subcommand("npc holo add")
-    fun npcHoloAdd(player: Player, npcId: Long, vararg text: String) {
-        if (!player.hasPermission("universum.npc")) {
-            player.sendMessage("§cYou do not have permission.")
-            return
-        }
-        val content = text.joinToString(" ")
-        NpcModifier.addHologramLine(npcId, 0, "TEXT", content)
-        player.sendMessage("§aAdded hologram line to NPC #$npcId.")
-    }
-
-    @Subcommand("npc holo clear")
-    fun npcHoloClear(player: Player, npcId: Long) {
-        if (!player.hasPermission("universum.npc")) {
-            player.sendMessage("§cYou do not have permission.")
-            return
-        }
-        NpcModifier.clearHolograms(npcId)
-        player.sendMessage("§aCleared all holograms for NPC #$npcId.")
-    }
-
-    @Subcommand("npc action add")
-    fun npcActionAdd(player: Player, npcId: Long, type: String, vararg jsonParts: String) {
-        if (!player.hasPermission("universum.npc")) {
-            player.sendMessage("§cYou do not have permission.")
-            return
-        }
-        val json = jsonParts.joinToString(" ")
-        try {
-            gson.fromJson(json, Map::class.java) // validate JSON
-            NpcModifier.addAction(npcId, type, json)
-            player.sendMessage("§aAdded action to NPC #$npcId.")
-        } catch (e: Exception) {
-            player.sendMessage("§cInvalid JSON: ${e.message}")
-        }
-    }
-
-    @Subcommand("npc action clear")
-    fun npcActionClear(player: Player, npcId: Long) {
-        if (!player.hasPermission("universum.npc")) {
-            player.sendMessage("§cYou do not have permission.")
-            return
-        }
-        NpcModifier.clearActions(npcId)
-        player.sendMessage("§aCleared all actions for NPC #$npcId.")
-    }
-
-    @Subcommand("npc help")
-    fun npcHelp(player: Player) {
-        player.sendMessage("§6=== NPC Commands ===")
-        player.sendMessage("§a/universum npc create <name> §7- Create NPC at your location")
-        player.sendMessage("§a/universum npc delete <id> §7- Delete an NPC")
-        player.sendMessage("§a/universum npc holo add <id> <text> §7- Add hologram line")
-        player.sendMessage("§a/universum npc holo clear <id> §7- Clear holograms")
-        player.sendMessage("§a/universum npc action add <id> <type> <json> §7- Add action")
-        player.sendMessage("§a/universum npc action clear <id> §7- Clear actions")
-    }
 }

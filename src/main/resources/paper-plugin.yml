@@ -4,3 +4,8 @@ version: '${version}'
 main: org.tainorazum.universum.Universum
 api-version: '1.21.11'
 load: POSTWORLD
+
+soft-dependencies:
+  - FastAsyncWorldEdit
+  - ProtocolLib
+  - LuckPerms
