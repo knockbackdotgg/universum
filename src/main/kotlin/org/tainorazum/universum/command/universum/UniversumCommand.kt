@@ -1,15 +1,9 @@
 package org.tainorazum.universum.command.universum
 
-import org.bukkit.entity.Player
-import org.tainorazum.universum.server.npc.NpcModifier
 import revxrsal.commands.annotation.Command
-import revxrsal.commands.annotation.CommandPlaceholder
 import revxrsal.commands.annotation.Subcommand
 import com.google.gson.Gson
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.ComponentLike
-import net.kyori.adventure.text.format.NamedTextColor
-import org.tainorazum.universum.command.universum.npc.CMD_U_Npc
 import org.tainorazum.universum.utility.text.Colours
 import revxrsal.commands.annotation.Optional
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
@@ -17,7 +11,6 @@ import revxrsal.commands.bukkit.actor.BukkitCommandActor
 enum class UniversumCommandSub {
 
     GENERAL,
-    NPC,
 
     ;
 
@@ -27,7 +20,6 @@ enum class UniversumCommandSub {
         if (cachedCommand != null) return cachedCommand
         
         cachedCommand = when (this) {
-            NPC -> CMD_U_Npc()
             else -> null
         }
         return cachedCommand

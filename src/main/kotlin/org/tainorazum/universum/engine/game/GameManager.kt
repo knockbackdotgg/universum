@@ -6,6 +6,7 @@ import org.tainorazum.universum.engine.game.util.GameRequest
 import org.tainorazum.universum.engine.game.util.OngoingGame
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.server.server.Server
+import java.util.concurrent.CompletableFuture
 
 class GameManager {
 
@@ -27,24 +28,22 @@ class GameManager {
 
     }
 
-    fun createGame(request: GameRequest) : Boolean {
+    fun createGame(request: GameRequest) : CompletableFuture<Boolean> {
+        val future = CompletableFuture<Boolean>()
 
-        try {
-            val arena = Universum.arenaManager.retrieveArena(request.arenaName)
+        Universum.arenaManager.retrieveArena(request.arenaName).thenAccept { arena ->
             if(arena != null) {
                 val game = Game(request.gameType, arena)
                 val ongoingGame = OngoingGame(game, Universum.server)
 
                 registerOngoingGame(Universum.server, ongoingGame)
-                return true
+                future.complete(true)
             } else {
-                return false
+                future.complete(false)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return false
         }
 
+        return future
     }
 
     private fun registerOngoingGame(server: Server, game: OngoingGame) : Boolean {

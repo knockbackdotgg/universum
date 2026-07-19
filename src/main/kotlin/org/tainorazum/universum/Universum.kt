@@ -1,10 +1,10 @@
 package org.tainorazum.universum
 
 import gg.flyte.twilight.scheduler.delay
+import gg.flyte.twilight.time.TimeUnit
 import gg.flyte.twilight.twilight
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
-import org.tainorazum.universum.command.universum.npc.CMD_U_Npc
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
@@ -18,7 +18,6 @@ import org.tainorazum.universum.redis.listeners.RM_GameRequest
 import org.tainorazum.universum.server.server.Server
 import org.tainorazum.universum.server.server.ServerManager
 import org.tainorazum.universum.server.server.ServerType
-import org.tainorazum.universum.server.npc.NpcManager
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
 import org.tainorazum.universum.server.visual.VisualServerManager
@@ -83,6 +82,7 @@ class Universum : JavaPlugin() {
         }
 
         // managers
+        lobbyManager = LobbyManager()
         adbm = ArenaDatabaseManager()
         arenaManager = ArenaManager()
         gameManager = GameManager()
@@ -99,19 +99,6 @@ class Universum : JavaPlugin() {
                 logger.warning("Failed to load server settings into cache: ${e.message}")
             }
 
-            try {
-                NpcManager.init()
-                // register protocol listener (if ProtocolLib present)
-                try {
-                    val listener = org.tainorazum.universum.server.npc.NpcPacketListener(this@Universum)
-                    listener.register()
-                } catch (e: NoClassDefFoundError) {
-                    logger.info("ProtocolLib not present; packet-based NPC interactions will be disabled. Falling back to events.")
-                }
-            } catch (e: Exception) {
-                logger.warning("Failed to initialize NPC manager: ${e.message}")
-            }
-
             if(Companion.server.type == ServerType.LOBBY) {
                 lobbyManager = LobbyManager()
                 // load lobby world cache for fast in-world checks
@@ -124,18 +111,15 @@ class Universum : JavaPlugin() {
         }
 
         // commands
-
-        // UniversumCommand
-        lamp.register(CMD_U_Npc())
-
-        open().thenAccept { success ->
-            if(success) {
-                server.setWhitelist(false)
-            } else {
-                // log or alert
+        delay(200) {
+            open().thenAccept { success ->
+                if(success) {
+                    server.setWhitelist(false)
+                } else {
+                    // log or alert
+                }
             }
         }
-
     }
 
     override fun onDisable() {
@@ -147,14 +131,8 @@ class Universum : JavaPlugin() {
             logger.info("Database pool safely disconnected.")
         }
 
-
         RedisManager.close()
         RedisSubscriber.stop()
-
-        // shutdown NPC manager
-        try {
-            org.tainorazum.universum.server.npc.NpcManager.shutdown()
-        } catch (_: Exception) {}
 
         delay(3000) {
             server.shutdown() // server can't run without this plugin

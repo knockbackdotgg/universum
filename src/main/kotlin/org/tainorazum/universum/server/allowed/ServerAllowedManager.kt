@@ -8,7 +8,7 @@ class ServerAllowedManager {
     fun allowed(player: Player): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
 
-
+        return future
     }
 
 }

@@ -30,7 +30,7 @@ object DB_Punishments : Table("punishments") {
     val archived = bool("archived")
 
     override val primaryKey = PrimaryKey(player_uuid, reason, duration, punished_on, punisher_uuid, archived)
-
+/*
     // Cache: keep in-memory values and accumulate local deltas.
     // We apply deltas to the DB periodically to avoid contention across servers.
     private data class StatsKey(val id: String, val gametype: String, val uuid: String)
@@ -54,7 +54,7 @@ object DB_Punishments : Table("punishments") {
             transaction {
                 val valueFromDb = DB_Punishments.selectAll()
                     .where {
-                        (identifier eq id) and
+                        (DB_Punishments eq id) and
                             (gametype eq gameType.name) and
                             (uuid eq playerUuid)
                     }
@@ -205,5 +205,5 @@ object DB_Punishments : Table("punishments") {
             e.printStackTrace()
         }
     }
-
+*/
 }

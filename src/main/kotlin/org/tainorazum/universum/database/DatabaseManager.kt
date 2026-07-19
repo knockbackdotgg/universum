@@ -7,7 +7,6 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tainorazum.universum.Universum
-// select/insert are used by DB_ServerSettings.ensureDefaults(), keep imports if needed elsewhere
 import org.tainorazum.universum.database.example.EX_PlayerData
 import org.tainorazum.universum.engine.arena.database.DB_ArenaLocations
 import org.tainorazum.universum.engine.arena.database.DB_Arenas
@@ -15,10 +14,9 @@ import org.tainorazum.universum.engine.arena.database.DB_ArenaGametypes
 import org.tainorazum.universum.engine.arena.database.DB_ArenaKits
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.server.server.DB_Server
-import org.tainorazum.universum.server.npc.database.DB_LobbyNPC
-import org.tainorazum.universum.server.npc.database.DB_NPCAction
-import org.tainorazum.universum.server.npc.database.DB_NPCHologram
+import org.tainorazum.universum.server.punishment.DB_Punishments
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
 
@@ -62,9 +60,8 @@ class DatabaseManager {
         create(DB_VisualServer)
         create(DB_Server)
         create(DB_ServerSettings)
-        create(DB_LobbyNPC)
-        create(DB_NPCAction)
-        create(DB_NPCHologram)
+        create(DB_Lobby)
+        //create(DB_Punishments)
     }
 
     fun create(table: Table) {

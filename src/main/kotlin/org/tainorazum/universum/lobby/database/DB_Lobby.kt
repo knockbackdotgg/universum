@@ -26,7 +26,7 @@ object DB_Lobby : Table("lobby") {
     val center_y = double("center_y")
     val center_z = double("center_z")
 
-    override val primaryKey = PrimaryKey(spawnpoint_world, spawnpoint_x, spawnpoint_y, spawnpoint_z, spawnpoint_pitch, spawnpoint_yaw, map_schematic)
+    override val primaryKey = PrimaryKey(spawnpoint_world, spawnpoint_x, spawnpoint_y, spawnpoint_z, spawnpoint_pitch, spawnpoint_yaw)
 
     /**
      * Cached lobby world name. Loaded once at startup.
