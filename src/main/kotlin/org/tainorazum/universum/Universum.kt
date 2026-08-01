@@ -5,6 +5,10 @@ import gg.flyte.twilight.time.TimeUnit
 import gg.flyte.twilight.twilight
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
+import org.tainorazum.universum.command.universum.UniversumCommandGeneral
+import org.tainorazum.universum.command.universum.UniversumCommandLobby
+import org.tainorazum.universum.command.universum.UniversumCommandSub
+import org.tainorazum.universum.command.universum.UniversumCommandTest
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
@@ -111,6 +115,12 @@ class Universum : JavaPlugin() {
         }
 
         // commands
+
+        lamp.register(UniversumCommandGeneral())
+        lamp.register(UniversumCommandTest())
+        lamp.register(UniversumCommandLobby())
+
+        // whitelist
         delay(200) {
             open().thenAccept { success ->
                 if(success) {

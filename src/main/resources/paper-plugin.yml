@@ -5,7 +5,17 @@ main: org.tainorazum.universum.Universum
 api-version: '1.21.11'
 load: POSTWORLD
 
-soft-dependencies:
-  - FastAsyncWorldEdit
-  - ProtocolLib
-  - LuckPerms
+dependencies:
+  server:
+    LuckPerms:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    FastAsyncWorldEdit:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    ProtocolLib:
+      load: BEFORE
+      required: true
+      join-classpath: true

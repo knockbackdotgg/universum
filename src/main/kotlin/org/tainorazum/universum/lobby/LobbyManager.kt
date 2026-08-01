@@ -7,6 +7,8 @@ import com.sk89q.worldedit.function.operation.Operations
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.session.ClipboardHolder
 import gg.flyte.twilight.event.event
+import net.kyori.adventure.text.Component
+import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.block.Block
 import org.bukkit.entity.Entity
@@ -89,6 +91,9 @@ import org.bukkit.event.world.WorldSaveEvent
 import org.bukkit.event.world.WorldUnloadEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.utility.player.PlayerUtility
+import org.tainorazum.universum.utility.text.Messages
+import org.tainorazum.universum.utility.text.Messages.replace
 import java.io.ByteArrayInputStream
 import java.util.concurrent.CompletableFuture
 import kotlin.use
@@ -232,8 +237,18 @@ class LobbyManager {
     private fun BLOCK_PISTON_RETRACT_EVENT(event: BlockPistonRetractEvent) { cancel(event) }
 
     // player
-    private fun PLAYER_JOIN_EVENT(event: PlayerJoinEvent) { cancel(event) }
-    private fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) { cancel(event) }
+    private fun PLAYER_JOIN_EVENT(event: PlayerJoinEvent) {
+        event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
+        event.player.gameMode = GameMode.SPECTATOR
+
+        DB_Lobby.getSpawnpointLocation().thenAccept {
+            PlayerUtility.reset(event.player, GameMode.SURVIVAL)
+            event.player.teleport(it)
+        }
+    }
+    private fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
+        event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
+    }
     private fun PLAYER_KICK_EVENT(event: PlayerKickEvent) { cancel(event) }
     private fun PLAYER_DEATH_EVENT(event: PlayerDeathEvent) {
         event.deathMessage(null)
