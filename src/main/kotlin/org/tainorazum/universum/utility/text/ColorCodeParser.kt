@@ -1,7 +1,7 @@
 package org.tainorazum.universum.utility.text
 
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.format.TextDecoration
 
 /**
@@ -13,22 +13,19 @@ import net.kyori.adventure.text.format.TextDecoration
 object ColorCodeParser {
 
     private val colorMap = mapOf(
-        '0' to NamedTextColor.BLACK,
-        '1' to NamedTextColor.DARK_BLUE,
-        '2' to NamedTextColor.DARK_GREEN,
-        '3' to NamedTextColor.DARK_AQUA,
-        '4' to NamedTextColor.DARK_RED,
-        '5' to NamedTextColor.DARK_PURPLE,
-        '6' to NamedTextColor.GOLD,
-        '7' to NamedTextColor.GRAY,
-        '8' to NamedTextColor.DARK_GRAY,
-        '9' to NamedTextColor.BLUE,
-        'a' to NamedTextColor.GREEN,
-        'b' to NamedTextColor.AQUA,
-        'c' to NamedTextColor.RED,
-        'd' to NamedTextColor.LIGHT_PURPLE,
-        'e' to NamedTextColor.YELLOW,
-        'f' to NamedTextColor.WHITE
+        '1' to Colours.SKY_BLUE,
+        '2' to Colours.DARK_GREEN,
+        '5' to Colours.PURPLE,
+        '6' to Colours.GOLD,
+        '7' to Colours.GREY,
+        '8' to Colours.DARK_GREY,
+        '9' to Colours.BLUE,
+        'a' to Colours.GREEN,
+        'b' to Colours.AQUA,
+        'c' to Colours.RED,
+        'd' to Colours.LIGHT_PURPLE,
+        'e' to Colours.YELLOW,
+        'f' to Colours.WHITE
     )
 
     /**
@@ -40,14 +37,14 @@ object ColorCodeParser {
 
         val result = mutableListOf<Component>()
         var currentText = StringBuilder()
-        var currentColor: NamedTextColor? = null
+        var currentColor: TextColor? = null
         val currentDecorations = mutableSetOf<TextDecoration>()
-        
+
         var i = 0
         while (i < text.length) {
             if (i < text.length - 1 && text[i] == '&') {
                 val code = text[i + 1].lowercaseChar()
-                
+
                 // Flush current text as a component
                 if (currentText.isNotEmpty()) {
                     val component = addFormattingToComponent(
@@ -103,7 +100,7 @@ object ColorCodeParser {
 
     private fun addFormattingToComponent(
         component: Component,
-        color: NamedTextColor?,
+        color: TextColor?,
         decorations: Set<TextDecoration>
     ): Component {
         var result = component
@@ -112,4 +109,3 @@ object ColorCodeParser {
         return result
     }
 }
-

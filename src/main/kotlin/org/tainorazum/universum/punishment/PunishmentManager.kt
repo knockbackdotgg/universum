@@ -70,4 +70,16 @@ class PunishmentManager {
         return future
     }
 
+    fun isMuted(uuid: UUID): CompletableFuture<Punishment?> {
+        val future = CompletableFuture<Punishment?>()
+
+        DB_Punishments.getPunishments(uuid).thenAccept { punishments ->
+            punishments.forEach { p ->
+                if(p.type == PunishmentType.MUTE && !p.archived) future.complete(p)
+            }
+        }
+
+        return future
+    }
+
 }

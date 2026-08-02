@@ -5,6 +5,8 @@ import gg.flyte.twilight.twilight
 import net.luckperms.api.LuckPerms
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
+import org.tainorazum.universum.chat.ChatFilterManager
+import org.tainorazum.universum.chat.ChatManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
@@ -13,6 +15,7 @@ import org.tainorazum.universum.command.universum.commands.UniversumCommandDatab
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
 import org.tainorazum.universum.command.universum.commands.UniversumCommandTest
+import org.tainorazum.universum.cosmetic.manager.CosmeticManager
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
@@ -20,12 +23,12 @@ import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.player.PlayerManager
 import org.tainorazum.universum.punishment.PunishmentManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.redis.RedisSubscriber
 import org.tainorazum.universum.redis.listeners.RM_GameRequest
-import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.server.Server
 import org.tainorazum.universum.server.server.ServerManager
 import org.tainorazum.universum.server.server.ServerType
@@ -59,6 +62,9 @@ class Universum : JavaPlugin() {
         lateinit var whitelistManager: WhitelistManager private set
         lateinit var playerManager: PlayerManager private set
         lateinit var punishmentManager: PunishmentManager private set
+        lateinit var chatManager: ChatManager private set
+        lateinit var chatFilterManager: ChatFilterManager private set
+        lateinit var cosmeticManager: CosmeticManager private set
 
         // lobby servers
         lateinit var lobbyManager: LobbyManager private set
@@ -97,7 +103,7 @@ class Universum : JavaPlugin() {
             if(enabled.toString().toBoolean()) {
                 RedisManager.init()
                 RedisSubscriber.start(this)
-                RM_GameRequest()
+                NetworkPlayerManager.loadInitialPlayers()
             }
         }
 
@@ -122,6 +128,9 @@ class Universum : JavaPlugin() {
         whitelistManager = WhitelistManager()
         playerManager = PlayerManager()
         punishmentManager = PunishmentManager()
+        cosmeticManager = CosmeticManager()
+        chatFilterManager = ChatFilterManager()
+        chatManager = ChatManager()
 
         // delay database-dependent initialization by a small amount to ensure tables are created
         delay(100) {

@@ -32,6 +32,7 @@ import org.bukkit.event.weather.WeatherChangeEvent
 import org.bukkit.event.world.*
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.punishment.PunishmentManager
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.toHumanReadable
@@ -240,6 +241,7 @@ class LobbyManager {
     }
 
     fun PLAYER_JOIN_EVENT(event: PlayerJoinEvent) {
+        NetworkPlayerManager.handleLocalJoin(event.player, Universum.server.identifier)
         enter(event.player)
 
         event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
@@ -254,6 +256,7 @@ class LobbyManager {
     }
 
     fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
+        NetworkPlayerManager.handleLocalQuit(event.player, Universum.server.identifier)
         event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
         leave(event.player)
     }

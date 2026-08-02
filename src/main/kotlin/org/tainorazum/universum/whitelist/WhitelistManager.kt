@@ -9,7 +9,6 @@ import java.util.concurrent.CompletableFuture
 
 class WhitelistManager {
 
-    private val lp = Universum.luckperms
     val perm = "universum.whitelist"
 
     fun isWhitelisted(uuid: UUID): CompletableFuture<Boolean> {

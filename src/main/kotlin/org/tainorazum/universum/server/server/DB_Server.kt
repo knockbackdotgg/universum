@@ -1,13 +1,16 @@
 package org.tainorazum.universum.server.server
 
 import org.bukkit.Location
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.coalesce
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.booleanLiteral
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.upsert
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.count
@@ -23,6 +26,21 @@ object DB_Server : Table("servers") {
 
     @Volatile
     private var cachedPublic: Boolean? = null
+
+    fun register(id: String, type: ServerType): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                DB_Server.upsert(DB_Server.identifier) {
+                    it[DB_Server.identifier] = id
+                    it[DB_Server.type] = type.name
+
+                    it[DB_Server.public] = coalesce(DB_Server.public, booleanLiteral(true))
+                    it[DB_Server.online] = coalesce(DB_Server.online, booleanLiteral(true))
+                }
+                true
+            }
+        }
+    }
 
     fun update(id: String, type: ServerType, public: Boolean, online: Boolean): CompletableFuture<Boolean> {
         return dba {

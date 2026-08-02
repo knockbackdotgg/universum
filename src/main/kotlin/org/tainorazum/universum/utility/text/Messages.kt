@@ -23,7 +23,21 @@ object Messages {
     fun WHITELIST_KICK_MSG() = Component.text("You have been kicked: Server whitelist enabled.", Colours.RED)
     fun MAINTENANCE_MSG() =
         Component.text("Server is currently under maintenance, please try again later.", Colours.RED)
-
+    fun CHAT_FILTER_MSG() = Component.text("You can't say that. Please refrain from hate speech, toxicity & profanity.", Colours.RED)
+    fun MUTED_MSG() =
+        Component.newline()
+            .append(Component.newline()).append(Component.text("You have been muted.", Colours.RED))
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("ID » ", Colours.GREY).append(Component.text("#<id>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Type » ", Colours.GREY).append(Component.text("<type>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Reason » ", Colours.GREY).append(Component.text("<reason>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Duration » ", Colours.GREY).append(Component.text("<duration>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Muted on » ", Colours.GREY).append(Component.text("<muted>", Colours.RED)))
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("You will be unmuted on » ", Colours.GREY).append(Component.text("<unmuted>", Colours.GREEN)))
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("If you believe this punishment to be wrong, you may appeal in our Discord server.", Colours.GREY))
+            .append(Component.newline()).append(Component.text("discord.gg/knockback", Colours.RED))
     fun WHITELIST_MSG() = Component.text("Server is currently whitelisted, please try again later.", Colours.RED)
     fun BANNED_MSG_SHORT() = Component.text("You have been banned.", Colours.RED)
     fun BANNED_MSG() =

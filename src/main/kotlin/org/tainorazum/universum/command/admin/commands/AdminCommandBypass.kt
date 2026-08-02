@@ -36,7 +36,7 @@ class AdminCommandBypass : AdminCommandGeneral(AdminCommandSub.BYPASS) {
     @Subcommand("bypass")
     fun bypass(
         actor: BukkitCommandActor,
-        @Suggest("lobby") bypass: String,
+        @Suggest("lobby", "chatfilter") bypass: String,
         bool: Boolean,
         @Optional name: String?
     ) = PlayerUtility.guard(actor, Permission.CMD_ADMIN_BYPASS) {
@@ -66,6 +66,21 @@ class AdminCommandBypass : AdminCommandGeneral(AdminCommandSub.BYPASS) {
                             player.sendMessage(Prefix.ADMIN()
                                 .append(Prefix.ARROW3())
                                 .append(Component.text("Lobby bypass $state for $targetName", Colours.GREEN)))
+                        } else {
+                            player.sendMessage(Prefix.ADMIN()
+                                .append(Prefix.ARROW3())
+                                .append(Component.text("Your bypass is already set to this value.", Colours.GREEN)))
+                        }
+                    }
+                }
+                "chatfilter" -> {
+                    Universum.playerManager.allowBypassChatFilter(uuid, bool).thenAccept { success ->
+                        if (success) {
+                            val targetName = name ?: player.name
+                            val state = if (bool) "enabled" else "disabled"
+                            player.sendMessage(Prefix.ADMIN()
+                                .append(Prefix.ARROW3())
+                                .append(Component.text("Chat filter bypass $state for $targetName", Colours.GREEN)))
                         } else {
                             player.sendMessage(Prefix.ADMIN()
                                 .append(Prefix.ARROW3())

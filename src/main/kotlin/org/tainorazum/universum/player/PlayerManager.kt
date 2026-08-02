@@ -9,6 +9,24 @@ import java.util.concurrent.CompletableFuture
 class PlayerManager {
 
     val PERM_LOBBY_BYPASS = "universum.bypass.lobby"
+    val PERM_CHAT_FILTER_BYPASS = "universum.bypass.chatfilter"
+
+    fun allowBypassChatFilter(player: Player, allow: Boolean): CompletableFuture<Boolean> {
+        return if(allow) {
+            LuckpermsUtil.givePermission(player.uniqueId, PERM_CHAT_FILTER_BYPASS)
+        } else {
+            LuckpermsUtil.removePermission(player.uniqueId, PERM_CHAT_FILTER_BYPASS)
+        }
+    }
+
+    fun allowBypassChatFilter(uuid: UUID, allow: Boolean): CompletableFuture<Boolean> {
+        return LuckpermsUtil.givePermission(uuid, PERM_CHAT_FILTER_BYPASS, value = allow)
+    }
+
+
+    fun allowBypassChatFilter(player: Player): Boolean {
+        return player.hasPermission(PERM_CHAT_FILTER_BYPASS)
+    }
 
     fun allowBypassLobby(player: Player, allow: Boolean): CompletableFuture<Boolean> {
         return if(allow) {

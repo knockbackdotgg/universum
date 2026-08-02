@@ -1,5 +1,8 @@
 package org.tainorazum.universum.utility.permissions
 
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.luckperms.api.LuckPermsProvider
 import net.luckperms.api.node.matcher.NodeMatcher
 import net.luckperms.api.node.types.PermissionNode
@@ -12,6 +15,33 @@ import java.util.concurrent.CompletableFuture
 object LuckpermsUtil {
 
     private val lp = Universum.luckperms
+
+    fun getRankComponent(uuid: UUID): CompletableFuture<Component> {
+        val luckPerms = LuckPermsProvider.get()
+
+        return luckPerms.userManager.loadUser(uuid).thenApply { user ->
+            val queryOptions = luckPerms.contextManager.getQueryOptions(user)
+                .orElseGet { luckPerms.contextManager.staticQueryOptions }
+
+            val metaData = user.cachedData.getMetaData(queryOptions)
+            val prefix = metaData.prefix ?: ""
+
+            parsePrefix(prefix)
+        }
+    }
+
+    /**
+     * Helper to parse prefix strings into Adventure Components cleanly.
+     */
+    private fun parsePrefix(prefix: String): Component {
+        if (prefix.isBlank()) return Component.empty()
+
+        return if (prefix.contains("<") && prefix.contains(">")) {
+            MiniMessage.miniMessage().deserialize(prefix)
+        } else {
+            LegacyComponentSerializer.legacyAmpersand().deserialize(prefix)
+        }
+    }
 
     fun givePermission(
         uuid: UUID,
