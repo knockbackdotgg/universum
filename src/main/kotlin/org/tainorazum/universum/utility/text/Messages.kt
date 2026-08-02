@@ -39,6 +39,7 @@ object Messages {
             .append(Component.newline()).append(Component.text("If you believe this punishment to be wrong, you may appeal in our Discord server.", Colours.GREY))
             .append(Component.newline()).append(Component.text("discord.gg/knockback", Colours.RED))
     fun WHITELIST_MSG() = Component.text("Server is currently whitelisted, please try again later.", Colours.RED)
+    fun SETTINGS_INVALID_MSG() = Component.text("Failed to load your player settings. Please try re-joining!", Colours.RED)
     fun BANNED_MSG_SHORT() = Component.text("You have been banned.", Colours.RED)
     fun BANNED_MSG() =
         Text.toSmallTextComponent("knockback.gg", Colours.DARK_GREY)

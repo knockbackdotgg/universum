@@ -7,7 +7,9 @@ import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats
 import com.sk89q.worldedit.function.operation.Operations
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.session.ClipboardHolder
+import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.block.Block
@@ -33,7 +35,9 @@ import org.bukkit.event.world.*
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
+import org.tainorazum.universum.network.tab.TabManager
 import org.tainorazum.universum.punishment.PunishmentManager
+import org.tainorazum.universum.setting.DB_PlayerSettings
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.toHumanReadable
 import org.tainorazum.universum.utility.player.PlayerUtility
@@ -215,8 +219,23 @@ class LobbyManager {
         try {
             val result = Universum.playerManager.allowJoin(event.uniqueId).get()
 
-            when(result) {
-                "ALLOWED" -> event.loginResult = AsyncPlayerPreLoginEvent.Result.ALLOWED
+            when (result) {
+                "ALLOWED" -> {
+                    event.loginResult = AsyncPlayerPreLoginEvent.Result.ALLOWED
+
+                    // Safely wait for settings pre-cache without letting unhandled futures crash
+                    try {
+                        Universum.playerSettingManager.cacheSettings(event.uniqueId).get()
+                    } catch (e: Exception) {
+                        val cause = e.cause ?: e
+                        Universum.instance.logger.severe("Failed to cache settings for ${event.uniqueId}: ${cause.message}")
+
+                        event.disallow(
+                            AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+                            Messages.SETTINGS_INVALID_MSG()
+                        )
+                    }
+                }
                 "WHITELISTED" -> event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, Messages.WHITELIST_MSG())
                 "BANNED" -> {
                     var msg: Component = Messages.BANNED_MSG_SHORT()
@@ -235,7 +254,7 @@ class LobbyManager {
                 else -> event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Messages.KICKED_MSG())
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Universum.instance.logger.severe("Error checking player login data for ${event.uniqueId}: ${e.message}")
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text("Error checking player data."))
         }
     }
@@ -259,6 +278,10 @@ class LobbyManager {
         NetworkPlayerManager.handleLocalQuit(event.player, Universum.server.identifier)
         event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
         leave(event.player)
+
+        // UPDATE THIS LATER
+        TabManager.leave(event.player)
+        DB_PlayerSettings.invalidateCache(event.player.uniqueId)
     }
 
     fun PLAYER_KICK_EVENT(event: PlayerKickEvent) {
@@ -279,7 +302,12 @@ class LobbyManager {
 
     fun PLAYER_MOVE_EVENT(event: PlayerMoveEvent) { }
     fun PLAYER_TELEPORT_EVENT(event: PlayerTeleportEvent) { }
-    fun ASYNC_PLAYER_CHAT_EVENT(event: AsyncPlayerChatEvent) { }
+    fun ASYNC_CHAT_EVENT(event: AsyncChatEvent) {
+        cancel(event)
+
+        val rawMessage = PlainTextComponentSerializer.plainText().serialize(event.message())
+        Universum.chatManager.executeMessage(event.player.uniqueId, rawMessage)
+    }
     fun PLAYER_INTERACT_EVENT(event: PlayerInteractEvent) { cancel(event) }
     fun PLAYER_INTERACT_ENTITY_EVENT(event: PlayerInteractEntityEvent) { cancel(event) }
     fun PLAYER_DROP_ITEM_EVENT(event: PlayerDropItemEvent) { cancel(event) }
@@ -306,10 +334,10 @@ class LobbyManager {
     fun ENTITY_PICKUP_ITEM_EVENT(event: EntityPickupItemEvent) { cancel(event) }
 
     // inventory & crafting
-    fun INVENTORY_CLICK_EVENT(event: InventoryClickEvent) { cancel(event) }
-    fun INVENTORY_CLOSE_EVENT(event: InventoryCloseEvent) { cancel(event) }
-    fun INVENTORY_OPEN_EVENT(event: InventoryOpenEvent) { cancel(event) }
-    fun INVENTORY_DRAG_EVENT(event: InventoryDragEvent) { cancel(event) }
+    fun INVENTORY_CLICK_EVENT(event: InventoryClickEvent) { }
+    fun INVENTORY_CLOSE_EVENT(event: InventoryCloseEvent) { }
+    fun INVENTORY_OPEN_EVENT(event: InventoryOpenEvent) { }
+    fun INVENTORY_DRAG_EVENT(event: InventoryDragEvent) { }
     fun FURNACE_BURN_EVENT(event: FurnaceBurnEvent) { cancel(event) }
     fun FURNACE_SMELT_EVENT(event: FurnaceSmeltEvent) { cancel(event) }
     fun PREPARE_ITEM_CRAFT_EVENT(event: PrepareItemCraftEvent) { cancel(event) }

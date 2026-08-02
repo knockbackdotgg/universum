@@ -5,6 +5,7 @@ import io.lettuce.core.pubsub.RedisPubSubListener
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 import org.bukkit.plugin.java.JavaPlugin
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.redis.listeners.RM_ChatMessage
 import org.tainorazum.universum.redis.listeners.RM_GameRequest
 import org.tainorazum.universum.redis.listeners.RM_Online
 import java.util.concurrent.ConcurrentHashMap
@@ -80,5 +81,6 @@ object RedisSubscriber {
     private fun registerListeners() {
         RM_GameRequest()
         RM_Online()
+        RM_ChatMessage()
     }
 }

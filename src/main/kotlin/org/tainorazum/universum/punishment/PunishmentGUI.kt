@@ -6,7 +6,6 @@ import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
-import org.tainorazum.universum.Universum
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.other.toHumanReadable
@@ -18,6 +17,9 @@ object PunishmentGUI {
 
     val orders = listOf("Type", "Date", "Duration")
     private val currentOrderIndex = mutableMapOf<UUID, Int>()
+
+    // Track active page per player
+    private val currentPageIndex = mutableMapOf<UUID, Int>()
 
     fun createOrderItem(current: String): ItemStack {
         val loreList = mutableListOf(Component.empty())
@@ -36,6 +38,25 @@ object PunishmentGUI {
         return item(
             Material.ARROW,
             Text.toSmallTextComponent("Order By", Colours.RED),
+            loreList
+        )
+    }
+
+    /**
+     * Builds the Page Cycler Item displaying current page status.
+     */
+    fun createPageItem(currentPage: Int, totalPages: Int): ItemStack {
+        val loreList = mutableListOf(
+            Component.empty(),
+            Component.text("Current page » ", Colours.GREY)
+                .append(Component.text("${currentPage + 1}/$totalPages", Colours.WHITE)),
+            Component.empty(),
+            Component.text("Click to cycle page", Colours.DARK_GREY)
+        )
+
+        return item(
+            Material.PAPER,
+            Text.toSmallTextComponent("page", Colours.RED),
             loreList
         )
     }
@@ -76,31 +97,38 @@ object PunishmentGUI {
 
             set('B', item(Material.RED_DYE, Component.text("Bans", Colours.RED), "See all bans.")) {
                 isCancelled = true
+                // Reset page on fresh view open
+                currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.BAN).open(player)
             }
 
             set('M', item(Material.ORANGE_DYE, Component.text("Mutes", Colours.ORANGE), "See all mutes.")) {
                 isCancelled = true
+                currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.MUTE).open(player)
             }
 
             set('K', item(Material.YELLOW_DYE, Component.text("Kicks", Colours.YELLOW), "See all kicks.")) {
                 isCancelled = true
+                currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.KICK).open(player)
             }
 
             set('W', item(Material.PURPLE_DYE, Component.text("Warns", Colours.PURPLE), "See all warns.")) {
                 isCancelled = true
+                currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.WARN).open(player)
             }
 
             set('N', item(Material.MAGENTA_DYE, Component.text("Notes", Colours.MAGENTA), "See all notes.")) {
                 isCancelled = true
+                currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.NOTE).open(player)
             }
 
             set('A', item(Material.WHITE_DYE, Component.text("All punishments", Colours.WHITE), "See all punishments.")) {
                 isCancelled = true
+                currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, null).open(player)
             }
         }
@@ -136,6 +164,17 @@ object PunishmentGUI {
             }
         }
 
+        // Pagination Calculations
+        val pageSize = itemSlots.size
+        val totalPages = maxOf(1, kotlin.math.ceil(punishmentsList.size.toDouble() / pageSize).toInt())
+
+        var page = currentPageIndex.getOrDefault(player.uniqueId, 0)
+        if (page >= totalPages) page = 0 // Bounds safety reset
+
+        val startIndex = page * pageSize
+        val endIndex = minOf(startIndex + pageSize, punishmentsList.size)
+        val pagedPunishments = if (punishmentsList.isNotEmpty()) punishmentsList.subList(startIndex, endIndex) else emptyList()
+
         val punishmentGui = gui(Text.toSmallTextComponent(titleText, Colours.GREY), 54) {
             pattern(*pattern.toTypedArray())
 
@@ -147,11 +186,18 @@ object PunishmentGUI {
             set('O', createOrderItem(activeOrder)) {
                 isCancelled = true
                 currentOrderIndex[player.uniqueId] = (activeOrderIndex + 1) % orders.size
-
                 historyWithTargetPunishments(previous, player, target, targetUuid, type).open(player)
             }
 
-            punishmentsList.take(itemSlots.size).forEachIndexed { index, punishment ->
+            // Page Cycler Button ('P')
+            set('P', createPageItem(page, totalPages)) {
+                isCancelled = true
+                currentPageIndex[player.uniqueId] = (page + 1) % totalPages
+                historyWithTargetPunishments(previous, player, target, targetUuid, type).open(player)
+            }
+
+            // Render current page items inside pattern slots 'I'
+            pagedPunishments.forEachIndexed { index, punishment ->
                 set(itemSlots[index], createPunishmentItem(punishment)) {
                     isCancelled = true
                 }
@@ -170,7 +216,7 @@ object PunishmentGUI {
             PunishmentType.NOTE -> Material.BOOK
         }
 
-        if(punishment.archived) {
+        if (punishment.archived) {
             material = Material.LIGHT_GRAY_DYE
         }
 

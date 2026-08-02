@@ -6,6 +6,7 @@ import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.network.NetworkPlayer
 import org.tainorazum.universum.network.NetworkPlayerEvent
+import org.tainorazum.universum.network.tab.TabManager
 import org.tainorazum.universum.redis.RedisManager
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -66,13 +67,11 @@ object NetworkPlayerManager {
             NetworkPlayerEvent.Type.QUIT -> onlinePlayers.remove(event.player.uuid)
         }
 
-        // Trigger Tab list updates on the main Bukkit thread
-        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-            updateTabListForAll()
-        })
+        // Trigger Tab update across all local online players
+        updateTabListForAll()
     }
 
     private fun updateTabListForAll() {
-        // Render or update Tab list for online players using onlinePlayers.values
+        TabManager.update()
     }
 }

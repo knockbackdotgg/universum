@@ -7,6 +7,8 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.cosmetic.database.DB_Cosmetics
+import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
 import org.tainorazum.universum.database.example.EX_PlayerData
 import org.tainorazum.universum.engine.arena.database.DB_ArenaLocations
 import org.tainorazum.universum.engine.arena.database.DB_Arenas
@@ -19,6 +21,7 @@ import org.tainorazum.universum.punishment.DB_Punishments
 import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
+import org.tainorazum.universum.setting.DB_PlayerSettings
 
 class DatabaseManager {
 
@@ -78,6 +81,9 @@ class DatabaseManager {
         create(DB_ServerSettings)
         create(DB_Lobby)
         create(DB_Punishments)
+        create(DB_PlayerSettings)
+        create(DB_PlayerCosmetics)
+        create(DB_Cosmetics)
     }
 
 }

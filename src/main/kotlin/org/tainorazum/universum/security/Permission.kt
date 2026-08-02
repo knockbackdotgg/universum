@@ -9,6 +9,11 @@ enum class Permission(
     val allowed: List<Allowed>
 ) {
 
+    CMD_DEFAULT_SETTINGS(listOf(Allowed.DEFAULT)),
+    CMD_DEFAULT_COSMETICS(listOf(Allowed.DEFAULT)),
+    CMD_DEFAULT_KITEDITOR(listOf(Allowed.DEFAULT)),
+    CMD_DEFAULT_INFO(listOf(Allowed.DEFAULT)),
+
     CMD_UNIVERSUM_GENERAL(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_DATABASE(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_LOBBY(listOf(Allowed.OWNER)),

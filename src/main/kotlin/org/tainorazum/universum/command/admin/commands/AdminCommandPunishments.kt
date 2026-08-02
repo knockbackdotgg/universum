@@ -11,6 +11,7 @@ import org.bukkit.inventory.meta.SkullMeta
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.command.admin.AdminCommandSub
 import org.tainorazum.universum.punishment.PunishmentGUI
+import org.tainorazum.universum.punishment.PunishmentType
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.other.parseDuration
@@ -31,11 +32,34 @@ import java.util.concurrent.CompletableFuture
 class AdminCommandPunishments : AdminCommandGeneral(AdminCommandSub.PUNISHMENTS) {
 
     override val tutorial : List<Pair<String, String>> = mutableListOf(
-        Pair("/admin punish", "Opens the punishments gui."),
+        Pair("/admin punish", "Opens the punishment tutorial gui."),
         Pair("/admin punish <name>", "Opens the punishments gui regarding a specific player."),
         Pair("/admin punish <name> <type> <reason> <duration>", "Punish a player."),
         Pair("/admin punish history <name>", "See a player's punishment history.")
     )
+
+    @Subcommand("punish")
+    fun punish(
+        actor: BukkitCommandActor,
+        @Optional name: String? = null,
+        @Optional type: PunishmentType? = null,
+        @Optional reason: String? = null,
+        @Optional duration: Duration? = null,
+    ) = PlayerUtility.guard(actor, Permission.CMD_ADMIN_PUNISHMENTS) {
+
+        val player = actor.requirePlayer()
+
+        if(name == null && type == null && reason == null && duration == null) {
+            // open tutorial gui
+        }
+        else if(name != null && type == null && reason == null && duration == null) {
+            // open punish gui
+        }
+        else {
+            // manual cmd
+        }
+
+    }
 
     @Subcommand("punish history")
     fun punishmentHistory(

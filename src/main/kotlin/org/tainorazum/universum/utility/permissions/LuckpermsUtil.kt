@@ -7,21 +7,53 @@ import net.luckperms.api.LuckPermsProvider
 import net.luckperms.api.node.matcher.NodeMatcher
 import net.luckperms.api.node.types.PermissionNode
 import org.bukkit.entity.Player
-import org.tainorazum.universum.Universum
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
 object LuckpermsUtil {
 
-    private val lp = Universum.luckperms
+    private val lp get() = LuckPermsProvider.get()
+
+    /**
+     * Asynchronously gets the primary group weight for a player by UUID.
+     */
+    fun getWeight(uuid: UUID): CompletableFuture<Int> {
+        return lp.userManager.loadUser(uuid).thenApply { user ->
+            val group = lp.groupManager.getGroup(user.primaryGroup)
+            group?.weight?.orElse(0) ?: 0
+        }
+    }
+
+    /**
+     * Asynchronously gets the primary group weight for an online Player.
+     */
+    fun getWeight(player: Player): CompletableFuture<Int> {
+        return getWeight(player.uniqueId)
+    }
+
+    /**
+     * Asynchronously gets the raw prefix string for a player by UUID.
+     */
+    fun getPrefix(uuid: UUID): CompletableFuture<String?> {
+        return lp.userManager.loadUser(uuid).thenApply { user ->
+            val queryOptions = lp.contextManager.getQueryOptions(user)
+                .orElseGet { lp.contextManager.staticQueryOptions }
+            user.cachedData.getMetaData(queryOptions).prefix
+        }
+    }
+
+    /**
+     * Asynchronously gets the raw prefix string for an online Player.
+     */
+    fun getPrefix(player: Player): CompletableFuture<String?> {
+        return getPrefix(player.uniqueId)
+    }
 
     fun getRankComponent(uuid: UUID): CompletableFuture<Component> {
-        val luckPerms = LuckPermsProvider.get()
-
-        return luckPerms.userManager.loadUser(uuid).thenApply { user ->
-            val queryOptions = luckPerms.contextManager.getQueryOptions(user)
-                .orElseGet { luckPerms.contextManager.staticQueryOptions }
+        return lp.userManager.loadUser(uuid).thenApply { user ->
+            val queryOptions = lp.contextManager.getQueryOptions(user)
+                .orElseGet { lp.contextManager.staticQueryOptions }
 
             val metaData = user.cachedData.getMetaData(queryOptions)
             val prefix = metaData.prefix ?: ""
@@ -30,9 +62,6 @@ object LuckpermsUtil {
         }
     }
 
-    /**
-     * Helper to parse prefix strings into Adventure Components cleanly.
-     */
     private fun parsePrefix(prefix: String): Component {
         if (prefix.isBlank()) return Component.empty()
 
@@ -49,21 +78,17 @@ object LuckpermsUtil {
         duration: Duration? = null,
         value: Boolean = true
     ): CompletableFuture<Boolean> {
-        val luckPerms = LuckPermsProvider.get()
-
-        return luckPerms.userManager.loadUser(uuid).thenApply { user ->
+        return lp.userManager.loadUser(uuid).thenApply { user ->
             val nodeBuilder = PermissionNode.builder(permission)
                 .value(value)
 
-            duration?.let {
-                nodeBuilder.expiry(it)
-            }
+            duration?.let { nodeBuilder.expiry(it) }
 
             val node = nodeBuilder.build()
             val result = user.data().add(node)
 
             if (result.wasSuccessful()) {
-                luckPerms.userManager.saveUser(user)
+                lp.userManager.saveUser(user)
                 true
             } else {
                 false
@@ -74,44 +99,21 @@ object LuckpermsUtil {
     fun givePermission(
         player: Player,
         permission: String,
-        duration: Duration? = null, // Optional duration parameter
+        duration: Duration? = null,
         value: Boolean = true
     ): CompletableFuture<Boolean> {
-        val luckPerms = LuckPermsProvider.get()
-
-        return luckPerms.userManager.loadUser(player.uniqueId).thenApply { user ->
-            val nodeBuilder = PermissionNode.builder(permission)
-                .value(value)
-
-            duration?.let {
-                nodeBuilder.expiry(it)
-            }
-
-            val node = nodeBuilder.build()
-            val result = user.data().add(node)
-
-            if (result.wasSuccessful()) {
-                luckPerms.userManager.saveUser(user)
-                true
-            } else {
-                false
-            }
-        }
+        return givePermission(player.uniqueId, permission, duration, value)
     }
 
     fun removePermission(uuid: UUID, permission: String): CompletableFuture<Boolean> {
         return lp.userManager.loadUser(uuid).thenApply { user ->
-            // Find all nodes matching the permission key (ignores expiry/context differences)
             val matchingNodes = user.nodes.filter { it.key.equals(permission, ignoreCase = true) }
 
-            if (matchingNodes.isEmpty()) {
-                return@thenApply false
-            }
+            if (matchingNodes.isEmpty()) return@thenApply false
 
             var removedAny = false
             for (node in matchingNodes) {
-                val result = user.data().remove(node)
-                if (result.wasSuccessful()) {
+                if (user.data().remove(node).wasSuccessful()) {
                     removedAny = true
                 }
             }
@@ -125,36 +127,12 @@ object LuckpermsUtil {
     }
 
     fun removePermission(player: Player, permission: String): CompletableFuture<Boolean> {
-        return lp.userManager.loadUser(player.uniqueId).thenApply { user ->
-            // Find all nodes matching the permission key (ignores expiry/context differences)
-            val matchingNodes = user.nodes.filter { it.key.equals(permission, ignoreCase = true) }
-
-            if (matchingNodes.isEmpty()) {
-                return@thenApply false
-            }
-
-            var removedAny = false
-            for (node in matchingNodes) {
-                val result = user.data().remove(node)
-                if (result.wasSuccessful()) {
-                    removedAny = true
-                }
-            }
-
-            if (removedAny) {
-                lp.userManager.saveUser(user)
-            }
-
-            removedAny
-        }
+        return removePermission(player.uniqueId, permission)
     }
 
     fun hasPermission(uuid: UUID, permission: String): CompletableFuture<Boolean> {
         return lp.userManager.loadUser(uuid).thenApply { user ->
-            val node = user.nodes.asSequence()
-                .filter { it.key == permission && it.value }
-                .firstOrNull()
-            (node != null && node.value)
+            user.nodes.asSequence().any { it.key == permission && it.value }
         }
     }
 
@@ -167,18 +145,15 @@ object LuckpermsUtil {
             if (node != null && node.hasExpiry()) {
                 node.expiryDuration
             } else {
-                null // Permission doesn't exist or is permanent
+                null
             }
         }
     }
 
     fun getPlayersWithPermission(permission: String): CompletableFuture<List<UUID>> {
-        val luckPerms = LuckPermsProvider.get()
-
         val matcher = NodeMatcher.key(PermissionNode.builder(permission).build())
-        return luckPerms.userManager.searchAll(matcher).thenApply { results ->
+        return lp.userManager.searchAll(matcher).thenApply { results ->
             results.keys.toList()
         }
     }
-
 }

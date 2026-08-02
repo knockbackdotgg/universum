@@ -5,12 +5,14 @@ import gg.flyte.twilight.twilight
 import net.luckperms.api.LuckPerms
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
-import org.tainorazum.universum.chat.ChatFilterManager
-import org.tainorazum.universum.chat.ChatManager
+import org.tainorazum.universum.Universum.Companion
+import org.tainorazum.universum.chat.manager.ChatFilterManager
+import org.tainorazum.universum.chat.manager.ChatManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
-import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
+import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
+import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
@@ -24,24 +26,24 @@ import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
+import org.tainorazum.universum.network.tab.TabManager
 import org.tainorazum.universum.player.PlayerManager
 import org.tainorazum.universum.punishment.PunishmentManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.redis.RedisSubscriber
-import org.tainorazum.universum.redis.listeners.RM_GameRequest
 import org.tainorazum.universum.server.server.Server
 import org.tainorazum.universum.server.server.ServerManager
 import org.tainorazum.universum.server.server.ServerType
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
 import org.tainorazum.universum.server.visual.VisualServerManager
+import org.tainorazum.universum.setting.manager.PlayerSettingManager
 import org.tainorazum.universum.utility.other.parseDuration
 import org.tainorazum.universum.whitelist.WhitelistManager
 import revxrsal.commands.bukkit.BukkitLamp
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.logging.Level
-
 
 class Universum : JavaPlugin() {
 
@@ -53,7 +55,7 @@ class Universum : JavaPlugin() {
             private set
 
         // all servers
-        lateinit var adbm : ArenaDatabaseManager private set
+        lateinit var adbm: ArenaDatabaseManager private set
         lateinit var arenaManager: ArenaManager private set
         lateinit var gameManager: GameManager private set
         lateinit var serverManager: ServerManager private set
@@ -65,24 +67,48 @@ class Universum : JavaPlugin() {
         lateinit var chatManager: ChatManager private set
         lateinit var chatFilterManager: ChatFilterManager private set
         lateinit var cosmeticManager: CosmeticManager private set
+        lateinit var playerSettingManager: PlayerSettingManager private set
 
         // lobby servers
         lateinit var lobbyManager: LobbyManager private set
     }
 
     override fun onEnable() {
-
-        server.setWhitelist(true)
-        Bukkit.getOnlinePlayers().forEach { p ->
-            p.kick()
-        }
-
-        // server
         instance = this
         saveDefaultConfig()
 
-        // dependencies & utils
+        // 1. Synchronously initialize Redis FIRST if enabled in config.yml
+        val redisEnabled = config.getBoolean("redis.enabled", false)
+        if (redisEnabled) {
+            val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
+            if (RedisManager.init(uri)) {
+                RedisSubscriber.start(this)
+                NetworkPlayerManager.loadInitialPlayers()
+            } else {
+                logger.warning("Redis is enabled in config but failed to connect.")
+            }
+        }
+
+        // 2. Initialize Core Database
+        try {
+            dbm = DatabaseManager()
+            dbm?.init()
+            logger.info("Successfully connected to the database pool.")
+        } catch (e: Exception) {
+            logger.log(Level.SEVERE, "Failed to initialize database connection! Disabling plugin...", e)
+            Bukkit.getPluginManager().disablePlugin(this)
+            return
+        }
+
+        // 3. Register Plugin Integrations
         twilight(this)
+
+        val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
+        if (provider != null) {
+            luckperms = provider.provider
+            TabManager.registerLuckPermsListener()
+        }
+
         val lamp = BukkitLamp.builder(this)
             .parameterTypes { types ->
                 types.addParameterType(Duration::class.java) { input, _ ->
@@ -92,33 +118,7 @@ class Universum : JavaPlugin() {
             }
             .build()
 
-        val provider = Bukkit.getServicesManager().getRegistration<LuckPerms?>(LuckPerms::class.java)
-        if (provider != null) {
-            luckperms = provider.getProvider()
-        }
-
-        // redis
-        DB_ServerSettings.set(ServerSetting.REDIS, config.get("redis.enabled") ?: false)
-        DB_ServerSettings.get(ServerSetting.REDIS).thenAccept { enabled ->
-            if(enabled.toString().toBoolean()) {
-                RedisManager.init()
-                RedisSubscriber.start(this)
-                NetworkPlayerManager.loadInitialPlayers()
-            }
-        }
-
-        // database
-        try {
-            dbm = DatabaseManager()
-            dbm?.init()
-            logger.info("Successfully connected to the database pool.")
-        } catch (e: Exception) {
-            logger.log(Level.SEVERE, "Failed to initialize database connection! Disabling plugin...", e)
-            server.pluginManager.disablePlugin(this)
-            return
-        }
-
-        // managers
+        // 4. Initialize Core Managers
         lobbyManager = LobbyManager()
         adbm = ArenaDatabaseManager()
         arenaManager = ArenaManager()
@@ -131,10 +131,13 @@ class Universum : JavaPlugin() {
         cosmeticManager = CosmeticManager()
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
+        playerSettingManager = PlayerSettingManager()
 
-        // delay database-dependent initialization by a small amount to ensure tables are created
-        delay(100) {
-            // load server settings and visual data into cache
+        // Sync setting in DB
+        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
+
+        // 5. Database-dependent Cache Loading
+        delay(20) {
             try {
                 DB_ServerSettings.loadAllSettingsIntoCache().get()
                 logger.info("Successfully loaded server settings into cache.")
@@ -142,62 +145,54 @@ class Universum : JavaPlugin() {
                 logger.warning("Failed to load server settings into cache: ${e.message}")
             }
 
-            if(Companion.server.type == ServerType.LOBBY) {
-                lobbyManager = LobbyManager()
-                // load lobby world cache for fast in-world checks
+            if (Companion.server.type == ServerType.LOBBY) {
                 if (!DB_Lobby.loadAndCacheBoundary()) {
                     logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
                 }
-                // start stats auto-flush
-                DB_Stats.startAutoFlush(1) // flush every 1 minute
+                DB_Stats.startAutoFlush(1)
             }
         }
 
-        // commands
-
+        // 6. Register Commands
+        lamp.register(SettingsCommand())
         lamp.register(UniversumCommandGeneral())
         lamp.register(UniversumCommandTest())
         lamp.register(UniversumCommandLobby())
         lamp.register(UniversumCommandDatabase())
-
         lamp.register(AdminCommandGeneral())
         lamp.register(AdminCommandWhitelist())
         lamp.register(AdminCommandBypass())
         lamp.register(AdminCommandPunishments())
 
-        // whitelist
-        delay(200) {
+        // 7. Whitelist / Readiness Check
+        delay(40) {
             open().thenAccept { success ->
-                if(success) {
+                if (success) {
                     server.setWhitelist(false)
-                } else {
-                    // log or alert
+                    serverManager.online()
                 }
             }
         }
-        serverManager.online()
     }
 
     override fun onDisable() {
+        // 1. Notify network that server is offline first
+        serverManager.offline()
 
+        // 2. Flush remaining player stats
         DB_Stats.shutdownAndFlush()
+
+        // 3. Disconnect Databases & Messaging
+        RedisSubscriber.stop()
+        RedisManager.close()
 
         dbm?.close()
         if (dbm != null) {
             logger.info("Database pool safely disconnected.")
         }
-
-        RedisManager.close()
-        RedisSubscriber.stop()
-
-        delay(3000) {
-            server.shutdown() // server can't run without this plugin
-        }
-
-        serverManager.offline()
     }
 
-    private fun open() : CompletableFuture<Boolean> {
+    private fun open(): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
 
         val arenaManagerFuture = arenaManager.success
@@ -210,5 +205,4 @@ class Universum : JavaPlugin() {
 
         return future
     }
-
 }
