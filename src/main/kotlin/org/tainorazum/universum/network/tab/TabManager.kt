@@ -5,17 +5,16 @@ import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-import net.luckperms.api.event.user.UserDataRecalculateEvent
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.permissions.LuckpermsUtil
 import org.tainorazum.universum.utility.text.Colours
+import org.tainorazum.universum.utility.text.Icon
 import org.tainorazum.universum.utility.text.Text
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicBoolean
 
 object TabManager {
 
@@ -26,54 +25,13 @@ object TabManager {
     private const val MAX_WEIGHT = 999
     private const val TEAM_NAME_PREFIX = "tab_"
 
-    private val isUpdateScheduled = AtomicBoolean(false)
-
     /**
-     * Registers a listener for LuckPerms recalculations.
-     * Call this inside onEnable().
-     */
-    fun registerLuckPermsListener() {
-        try {
-            val eventBus = Universum.luckperms.eventBus
-            eventBus.subscribe(Universum.instance, UserDataRecalculateEvent::class.java) { event ->
-                val player = Bukkit.getPlayer(event.user.uniqueId) ?: return@subscribe
-
-                // Run 1 tick later so LuckPerms finishes updating its internal cache
-                Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
-                    updatePlayer(player)
-                }, 1L)
-            }
-        } catch (e: Exception) {
-            Universum.instance.logger.warning("[TabManager] Could not register LuckPerms listener: ${e.message}")
-        }
-    }
-
-    /**
-     * Updates ONLY a single player's prefix and sorting across all online players' scoreboards.
-     */
-    fun updatePlayer(player: Player) {
-        LuckpermsUtil.getWeight(player).thenCombine(LuckpermsUtil.getPrefix(player)) { weight, prefixRaw ->
-            val prefix = prefixRaw?.let { legacySerializer.deserialize(it) } ?: Component.empty()
-            Triple(player.name, weight, prefix)
-        }.thenAccept { data ->
-            Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-                for (viewer in Bukkit.getOnlinePlayers()) {
-                    updateTeamEntry(viewer, data.first, data.second, data.third)
-                }
-            })
-        }
-    }
-
-    /**
-     * Triggers a debounced asynchronous Tab update for all online players on this server.
+     * Triggers a completely asynchronous Tab update for all online players on this server.
      */
     fun update() {
-        if (isUpdateScheduled.compareAndSet(false, true)) {
-            Bukkit.getScheduler().runTaskLaterAsynchronously(Universum.instance, Runnable {
-                isUpdateScheduled.set(false)
-                updateAsync()
-            }, 1L)
-        }
+        Bukkit.getScheduler().runTaskAsynchronously(Universum.instance, Runnable {
+            updateAsync()
+        })
     }
 
     private fun updateAsync() {
@@ -85,8 +43,10 @@ object TabManager {
 
         val playerFutures = mutableListOf<CompletableFuture<Triple<String, Int, Component>>>()
 
+        // Helper function to deserialize prefix properly
         fun parsePrefix(prefixRaw: String?): Component {
             val raw = prefixRaw ?: return Component.empty()
+            // Parses '&' color codes like &7, &l, &f, etc.
             return legacySerializer.deserialize(raw)
         }
 

@@ -16,6 +16,7 @@ import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
+import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.command.universum.commands.UniversumCommandTest
 import org.tainorazum.universum.cosmetic.manager.CosmeticManager
 import org.tainorazum.universum.database.DatabaseManager
@@ -77,7 +78,6 @@ class Universum : JavaPlugin() {
         instance = this
         saveDefaultConfig()
 
-        // 1. Synchronously initialize Redis FIRST if enabled in config.yml
         val redisEnabled = config.getBoolean("redis.enabled", false)
         if (redisEnabled) {
             val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
@@ -89,7 +89,6 @@ class Universum : JavaPlugin() {
             }
         }
 
-        // 2. Initialize Core Database
         try {
             dbm = DatabaseManager()
             dbm?.init()
@@ -100,13 +99,11 @@ class Universum : JavaPlugin() {
             return
         }
 
-        // 3. Register Plugin Integrations
         twilight(this)
 
         val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
         if (provider != null) {
             luckperms = provider.provider
-            TabManager.registerLuckPermsListener()
         }
 
         val lamp = BukkitLamp.builder(this)
@@ -118,7 +115,6 @@ class Universum : JavaPlugin() {
             }
             .build()
 
-        // 4. Initialize Core Managers
         lobbyManager = LobbyManager()
         adbm = ArenaDatabaseManager()
         arenaManager = ArenaManager()
@@ -133,10 +129,8 @@ class Universum : JavaPlugin() {
         chatManager = ChatManager()
         playerSettingManager = PlayerSettingManager()
 
-        // Sync setting in DB
         DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
 
-        // 5. Database-dependent Cache Loading
         delay(20) {
             try {
                 DB_ServerSettings.loadAllSettingsIntoCache().get()
@@ -153,18 +147,24 @@ class Universum : JavaPlugin() {
             }
         }
 
-        // 6. Register Commands
+        // commands
+
+        // default
         lamp.register(SettingsCommand())
+
+        // universum
         lamp.register(UniversumCommandGeneral())
         lamp.register(UniversumCommandTest())
         lamp.register(UniversumCommandLobby())
         lamp.register(UniversumCommandDatabase())
+        lamp.register(UniversumCommandServerList())
+
+        // admin
         lamp.register(AdminCommandGeneral())
         lamp.register(AdminCommandWhitelist())
         lamp.register(AdminCommandBypass())
         lamp.register(AdminCommandPunishments())
 
-        // 7. Whitelist / Readiness Check
         delay(40) {
             open().thenAccept { success ->
                 if (success) {
@@ -176,13 +176,10 @@ class Universum : JavaPlugin() {
     }
 
     override fun onDisable() {
-        // 1. Notify network that server is offline first
         serverManager.offline()
 
-        // 2. Flush remaining player stats
         DB_Stats.shutdownAndFlush()
 
-        // 3. Disconnect Databases & Messaging
         RedisSubscriber.stop()
         RedisManager.close()
 

@@ -18,6 +18,7 @@ enum class Permission(
     CMD_UNIVERSUM_DATABASE(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_LOBBY(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_TEST(listOf(Allowed.OWNER)),
+    CMD_UNIVERSUM_SERVERLIST(listOf(Allowed.OWNER)),
 
     CMD_ADMIN_GENERAL(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_WHITELIST(listOf(Allowed.OWNER, Allowed.ADMIN)),

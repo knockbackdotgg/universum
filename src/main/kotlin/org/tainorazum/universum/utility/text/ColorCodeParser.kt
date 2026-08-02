@@ -1,15 +1,10 @@
 package org.tainorazum.universum.utility.text
 
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.format.TextDecoration
 
-/**
- * Parses legacy color codes (&c, &a, etc.) and formatting codes into Adventure Components.
- * Supports:
- * - Color codes: &0-&9, &a-&f
- * - Formatting: &l (bold), &m (strikethrough), &n (underline), &o (italic), &r (reset)
- */
 object ColorCodeParser {
 
     private val colorMap = mapOf(
@@ -28,53 +23,67 @@ object ColorCodeParser {
         'f' to Colours.WHITE
     )
 
-    /**
-     * Parse a string with legacy color codes (&c, &a, etc.) into an Adventure Component.
-     * Example: "&cRed &aGreen &lBold" becomes a Component with proper formatting.
-     */
     fun parse(text: String): Component {
         if (text.isEmpty()) return Component.text("")
 
         val result = mutableListOf<Component>()
         var currentText = StringBuilder()
+
+        // Default color starts as WHITE so reset (&r) cleanly defaults to white
         var currentColor: TextColor? = null
         val currentDecorations = mutableSetOf<TextDecoration>()
 
         var i = 0
         while (i < text.length) {
             if (i < text.length - 1 && text[i] == '&') {
-                val code = text[i + 1].lowercaseChar()
+                val rawCode = text[i + 1]
+                val code = rawCode.lowercaseChar()
 
-                // Flush current text as a component
-                if (currentText.isNotEmpty()) {
-                    val component = addFormattingToComponent(
-                        Component.text(currentText.toString()),
-                        currentColor,
-                        currentDecorations
-                    )
-                    result.add(component)
-                    currentText = StringBuilder()
+                // If it's an escaped '&&', append single '&' and advance by 2
+                if (rawCode == '&') {
+                    currentText.append('&')
+                    i += 2
+                    continue
                 }
 
-                when (code) {
-                    in colorMap -> {
-                        currentColor = colorMap[code]
-                        currentDecorations.clear()
+                // Check if valid color/decoration code
+                val isColor = code in colorMap
+                val isFormat = code in setOf('l', 'm', 'n', 'o', 'r')
+
+                if (isColor || isFormat) {
+                    // Flush current text as a component
+                    if (currentText.isNotEmpty()) {
+                        val component = addFormattingToComponent(
+                            Component.text(currentText.toString()),
+                            currentColor,
+                            currentDecorations
+                        )
+                        result.add(component)
+                        currentText = StringBuilder()
                     }
-                    'l' -> currentDecorations.add(TextDecoration.BOLD)
-                    'm' -> currentDecorations.add(TextDecoration.STRIKETHROUGH)
-                    'n' -> currentDecorations.add(TextDecoration.UNDERLINED)
-                    'o' -> currentDecorations.add(TextDecoration.ITALIC)
-                    'r' -> {
-                        currentColor = null
-                        currentDecorations.clear()
+
+                    when {
+                        isColor -> {
+                            currentColor = colorMap[code]
+                            // Standard Minecraft behavior: color code clears decorations
+                            currentDecorations.clear()
+                        }
+                        code == 'l' -> currentDecorations.add(TextDecoration.BOLD)
+                        code == 'm' -> currentDecorations.add(TextDecoration.STRIKETHROUGH)
+                        code == 'n' -> currentDecorations.add(TextDecoration.UNDERLINED)
+                        code == 'o' -> currentDecorations.add(TextDecoration.ITALIC)
+                        code == 'r' -> {
+                            // Reset explicitly sets color to WHITE to break inheritance
+                            currentColor = NamedTextColor.WHITE
+                            currentDecorations.clear()
+                        }
                     }
-                    '&' -> currentText.append('&')
-                    else -> {
-                        currentText.append('&').append(code)
-                    }
+                    i += 2
+                } else {
+                    // Not a valid color code, treat '&' as literal text
+                    currentText.append(text[i])
+                    i++
                 }
-                i += 2
             } else {
                 currentText.append(text[i])
                 i++
@@ -105,7 +114,15 @@ object ColorCodeParser {
     ): Component {
         var result = component
         color?.let { result = result.color(it) }
-        decorations.forEach { result = result.decorate(it) }
+
+        // Ensure decorations not in the active set are explicitly turned off
+        TextDecoration.entries.forEach { dec ->
+            if (decorations.contains(dec)) {
+                result = result.decorate(dec)
+            } else {
+                result = result.decoration(dec, TextDecoration.State.FALSE)
+            }
+        }
         return result
     }
 }

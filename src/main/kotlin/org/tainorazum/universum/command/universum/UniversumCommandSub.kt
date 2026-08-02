@@ -8,7 +8,8 @@ enum class UniversumCommandSub {
     GENERAL,
     TEST,
     LOBBY,
-    DATABASE
+    DATABASE,
+    SERVERLIST
 
     ;
 

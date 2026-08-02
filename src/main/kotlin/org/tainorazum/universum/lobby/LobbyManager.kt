@@ -3,7 +3,6 @@ package org.tainorazum.universum.lobby
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats
 import com.sk89q.worldedit.function.operation.Operations
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.session.ClipboardHolder
@@ -36,7 +35,6 @@ import org.tainorazum.universum.Universum
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.tab.TabManager
-import org.tainorazum.universum.punishment.PunishmentManager
 import org.tainorazum.universum.setting.DB_PlayerSettings
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.toHumanReadable
@@ -96,7 +94,6 @@ class LobbyManager {
                 return@thenCompose CompletableFuture.completedFuture(false)
             }
 
-            // Delegate cleanly to your helper
             pasteSchematicTo(schematicBytes, targetLocation, ignoreAir = false)
         }.exceptionally { ex ->
             Universum.instance.logger.severe("Failed to paste lobby schematic: ${ex.cause?.message ?: ex.message}")
@@ -105,13 +102,6 @@ class LobbyManager {
         }
     }
 
-    /**
-     * Pastes a schematic from a byte array asynchronously using FastAsyncWorldEdit.
-     * @param schematicBytes The raw binary data of the schematic kept in memory.
-     * @param targetLocation The center of where the schematic should be pasted.
-     * @param ignoreAir If true, air blocks in the schematic won't overwrite existing blocks.
-     * @return A CompletableFuture<Boolean> that completes when done.
-     */
     private fun pasteSchematicTo(
         schematicBytes: ByteArray,
         targetLocation: Location,
@@ -129,7 +119,6 @@ class LobbyManager {
         CompletableFuture.runAsync {
             try {
                 ByteArrayInputStream(schematicBytes).use { inputStream ->
-                    // BuiltInClipboardFormat.SPONGE_SCHEMATIC correctly handles the internal NBT structure
                     BuiltInClipboardFormat.SPONGE_SCHEMATIC.getReader(inputStream).use { reader ->
                         val clipboard = reader.read() ?: throw NullPointerException("Clipboard returned null")
 
@@ -149,7 +138,6 @@ class LobbyManager {
                                 .build()
 
                             Operations.complete(operation)
-                            // editSession.close() is handled automatically by .use {} block
                         }
                     }
                 }
@@ -171,7 +159,7 @@ class LobbyManager {
             BlockFormEvent::class.java, BlockFromToEvent::class.java, BlockGrowEvent::class.java, BlockIgniteEvent::class.java,
             BlockPhysicsEvent::class.java, BlockSpreadEvent::class.java, BlockPistonExtendEvent::class.java, BlockPistonRetractEvent::class.java,
             PlayerJoinEvent::class.java, PlayerQuitEvent::class.java, PlayerKickEvent::class.java, PlayerDeathEvent::class.java,
-            PlayerMoveEvent::class.java, PlayerTeleportEvent::class.java, AsyncPlayerChatEvent::class.java, AsyncPlayerPreLoginEvent::class.java,
+            PlayerMoveEvent::class.java, PlayerTeleportEvent::class.java, AsyncChatEvent::class.java, AsyncPlayerPreLoginEvent::class.java,
             PlayerInteractEvent::class.java, PlayerInteractEntityEvent::class.java, PlayerDropItemEvent::class.java,
             PlayerRespawnEvent::class.java, PlayerItemConsumeEvent::class.java, PlayerSwapHandItemsEvent::class.java,
             PlayerFishEvent::class.java, PlayerCommandPreprocessEvent::class.java, PlayerBedEnterEvent::class.java, PlayerBedLeaveEvent::class.java,
@@ -223,7 +211,6 @@ class LobbyManager {
                 "ALLOWED" -> {
                     event.loginResult = AsyncPlayerPreLoginEvent.Result.ALLOWED
 
-                    // Safely wait for settings pre-cache without letting unhandled futures crash
                     try {
                         Universum.playerSettingManager.cacheSettings(event.uniqueId).get()
                     } catch (e: Exception) {
@@ -279,7 +266,6 @@ class LobbyManager {
         event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
         leave(event.player)
 
-        // UPDATE THIS LATER
         TabManager.leave(event.player)
         DB_PlayerSettings.invalidateCache(event.player.uniqueId)
     }
@@ -302,12 +288,14 @@ class LobbyManager {
 
     fun PLAYER_MOVE_EVENT(event: PlayerMoveEvent) { }
     fun PLAYER_TELEPORT_EVENT(event: PlayerTeleportEvent) { }
+
     fun ASYNC_CHAT_EVENT(event: AsyncChatEvent) {
         cancel(event)
 
         val rawMessage = PlainTextComponentSerializer.plainText().serialize(event.message())
         Universum.chatManager.executeMessage(event.player.uniqueId, rawMessage)
     }
+
     fun PLAYER_INTERACT_EVENT(event: PlayerInteractEvent) { cancel(event) }
     fun PLAYER_INTERACT_ENTITY_EVENT(event: PlayerInteractEntityEvent) { cancel(event) }
     fun PLAYER_DROP_ITEM_EVENT(event: PlayerDropItemEvent) { cancel(event) }
@@ -388,11 +376,11 @@ class LobbyManager {
     private fun getPlayerFromEvent(event: Event): Player? {
         return when (event) {
             is PlayerEvent -> event.player
+            is AsyncChatEvent -> event.player
             is InventoryClickEvent -> event.whoClicked as? Player
             is EntityEvent -> event.entity as? Player
-            is BlockEvent -> null // Block events don't directly reference a Player
+            is BlockEvent -> null
             else -> {
-                // Try reflection fallback for custom events (e.g. getPlayer())
                 try {
                     val method = event::class.java.getMethod("getPlayer")
                     method.invoke(event) as? Player
@@ -405,6 +393,10 @@ class LobbyManager {
 
     private fun isRelated(event: Event): Boolean {
         try {
+            if (event is AsyncChatEvent) {
+                return true
+            }
+
             val player = getPlayerFromEvent(event)
 
             if (player != null) {
@@ -423,8 +415,8 @@ class LobbyManager {
             }
 
             if (event is PlayerDeathEvent) {
-                val player = event.entity
-                return isPlayerInLobby(player) || isLocationInLobby(player.location)
+                val p = event.entity
+                return isPlayerInLobby(p) || isLocationInLobby(p.location)
             }
 
             if (event is PlayerEvent) {

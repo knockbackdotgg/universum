@@ -4,7 +4,7 @@ enum class PlayerSetting(
     val options: List<String> // default = 1st option
 ) {
 
-    ALLOW_PRIVATE_MESSAGES(listOf("true, false")),
+    ALLOW_PRIVATE_MESSAGES(listOf("true", "false")),
 
     ALLOW_FRIEND_REQUESTS(listOf("true", "false")),
 

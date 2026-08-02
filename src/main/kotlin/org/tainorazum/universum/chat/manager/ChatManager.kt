@@ -3,6 +3,7 @@ package org.tainorazum.universum.chat.manager
 import com.google.gson.Gson
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.chat.ChatMessage
@@ -20,7 +21,7 @@ import java.util.concurrent.CompletableFuture
 
 class ChatManager {
 
-    private val formatString = "%rank%&7%name% %tag%&7» &7%message%"
+    private val formatString = "%rank%&r&7%name%&r %tag%&r&7» &7%message%&r"
     private val gson = Gson()
 
     fun executeMessage(uuid: UUID, rawMessage: String): CompletableFuture<Boolean> {
@@ -34,7 +35,7 @@ class ChatManager {
 
         CompletableFuture.allOf(rankFuture, nameFuture, mutedFuture, chatFilterFuture, tagFuture).thenAccept {
             try {
-                val rank = rankFuture.get()
+                var rank = rankFuture.get()
                 val name = nameFuture.get() ?: run {
                     future.complete(false)
                     return@thenAccept
@@ -61,6 +62,12 @@ class ChatManager {
                     Bukkit.getPlayer(uuid)?.sendMessage(Messages.CHAT_FILTER_MSG())
                     future.complete(false)
                     return@thenAccept
+                }
+
+                val plainRank = PlainTextComponentSerializer.plainText().serialize(rank)
+
+                if (plainRank.isNotBlank()) {
+                    rank = rank.append(Component.text(" "))
                 }
 
                 val baseComponent = ColorCodeParser.parse(formatString)

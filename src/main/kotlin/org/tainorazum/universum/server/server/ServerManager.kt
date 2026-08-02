@@ -2,11 +2,14 @@ package org.tainorazum.universum.server.server
 
 import com.destroystokyo.paper.event.server.PaperServerListPingEvent
 import gg.flyte.twilight.event.event
+import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
+import java.io.ByteArrayInputStream
 import java.util.concurrent.CompletableFuture
 import java.util.logging.Level
+import javax.imageio.ImageIO
 
 class ServerManager {
 
@@ -16,12 +19,31 @@ class ServerManager {
         registerServer()
 
         event<PaperServerListPingEvent> {
-            DB_ServerSettings.get(ServerSetting.CURRENT_MOTD).thenAccept { currentMotd ->
-                Universum.visualServerManager.getMOTD(currentMotd.toString()).thenAccept { motd ->
-                    if (motd != null) motd(motd)
+            try {
+                // Fetch current active identifier (Instant from DB_ServerSettings cache)
+                val currentIdentifier = DB_ServerSettings.get(ServerSetting.CURRENT_MOTD)
+                    .getNow(ServerSetting.CURRENT_MOTD.default).toString()
+
+                // Fetch MOTD component (Instant from motdCache)
+                val motd = Universum.visualServerManager.getMOTD(currentIdentifier).getNow(null)
+                if (motd != null) {
+                    motd(motd)
                 }
+
+                // Fetch Favicon bytes (Instant from faviconCache)
+                val faviconBytes = Universum.visualServerManager.getFavicon(currentIdentifier).getNow(null)
+                if (faviconBytes != null) {
+                    val bufferedImage = ImageIO.read(ByteArrayInputStream(faviconBytes))
+                    if (bufferedImage != null) {
+                        val icon = Bukkit.getServer().loadServerIcon(bufferedImage)
+                        setServerIcon(icon)
+                    }
+                }
+            } catch (e: Exception) {
+                Universum.instance.logger.log(Level.WARNING, "Failed to apply dynamic server list visuals during ping", e)
             }
-            maxPlayers = numPlayers+1
+
+            maxPlayers = numPlayers + 1
         }
     }
 
@@ -43,34 +65,33 @@ class ServerManager {
         }
     }
 
-    fun public() : CompletableFuture<Boolean> {
+    fun public(): CompletableFuture<Boolean> {
         return DB_Server.setPublic(Universum.server.identifier, true)
     }
 
-    fun private() : CompletableFuture<Boolean> {
+    fun private(): CompletableFuture<Boolean> {
         return DB_Server.setPublic(Universum.server.identifier, false)
     }
 
-    fun online() : CompletableFuture<Boolean> {
+    fun online(): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
 
         Universum.server.public.thenAccept { public ->
-            DB_Server.update(Universum.server.identifier, Universum.server.type, public , online = true).thenAccept { success ->
+            DB_Server.update(Universum.server.identifier, Universum.server.type, public, online = true).thenAccept { success ->
                 future.complete(success)
             }
         }
         return future
     }
 
-    fun offline() : CompletableFuture<Boolean> {
+    fun offline(): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
 
         Universum.server.public.thenAccept { public ->
-            DB_Server.update(Universum.server.identifier, Universum.server.type, public , online = false).thenAccept { success ->
+            DB_Server.update(Universum.server.identifier, Universum.server.type, public, online = false).thenAccept { success ->
                 future.complete(success)
             }
         }
         return future
     }
-
 }

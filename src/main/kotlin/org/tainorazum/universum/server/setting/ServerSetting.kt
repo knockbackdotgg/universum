@@ -2,8 +2,8 @@ package org.tainorazum.universum.server.setting
 
 enum class ServerSetting(val default: Any) {
 
-    CURRENT_MOTD("ONLINE_DEFAULT"),
-    CURRENT_FAVICON("ONLINE_DEFAULT"),
+    CURRENT_MOTD("default"),
+    CURRENT_FAVICON("default"),
     WHITELISTED(true),
     REDIS(true)
 
