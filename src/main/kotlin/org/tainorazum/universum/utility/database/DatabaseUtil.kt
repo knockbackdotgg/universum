@@ -1,4 +1,4 @@
-package org.tainorazum.universum.utility
+package org.tainorazum.universum.utility.database
 
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
@@ -35,6 +35,20 @@ object DatabaseUtil {
         })
 
         return future
+    }
+
+    fun dropTableByName(tableName: String): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                try {
+                    exec("DROP TABLE IF EXISTS `$tableName`")
+                    true
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    false
+                }
+            }
+        }
     }
 
 }

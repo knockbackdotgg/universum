@@ -4,6 +4,7 @@ import com.comphenix.protocol.PacketType
 import com.comphenix.protocol.ProtocolLibrary
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.title.Title
+import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.entity.ArmorStand
@@ -14,8 +15,12 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.util.Vector
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.security.Permission
+import org.tainorazum.universum.utility.text.Messages
+import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -296,6 +301,53 @@ object PlayerUtility {
 
         }
 
+    }
+
+    // permission
+
+    fun allowed(actor: BukkitCommandActor, permission: Permission): CompletableFuture<Boolean> {
+        val player = actor.asPlayer() ?: return CompletableFuture.completedFuture(true)
+        return permission.check(player.uniqueId)
+    }
+
+    inline fun guard(
+        actor: BukkitCommandActor,
+        permission: Permission,
+        crossinline action: () -> Unit
+    ) {
+        allowed(actor, permission).thenAccept { isAllowed ->
+            if (isAllowed) action()
+            else {
+                val player = actor.requirePlayer()
+                player.sendMessage(Messages.NO_PERMISSION_COMMAND())
+            }
+        }
+    }
+
+    // uuid
+
+    fun getName(uuid: UUID): CompletableFuture<String?> {
+        val profile = Bukkit.createPlayerProfile(uuid)
+
+        return profile.update().thenApply { updatedProfile ->
+            if (updatedProfile.uniqueId != null && updatedProfile.name != null) {
+                updatedProfile.name
+            } else {
+                null
+            }
+        }
+    }
+
+    fun getUUID(username: String): CompletableFuture<UUID?> {
+        val profile = Bukkit.createPlayerProfile(username)
+
+        return profile.update().thenApply { updatedProfile ->
+            if (updatedProfile.uniqueId != null && updatedProfile.name != null) {
+                updatedProfile.uniqueId
+            } else {
+                null
+            }
+        }
     }
 
 }

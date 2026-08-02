@@ -1,13 +1,16 @@
 package org.tainorazum.universum.server.server
 
+import org.bukkit.Location
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.tainorazum.universum.utility.DatabaseUtil.dba
+import org.jetbrains.exposed.sql.update
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
+import kotlin.collections.count
 
 object DB_Server : Table("servers") {
 
@@ -17,6 +20,9 @@ object DB_Server : Table("servers") {
     val online = bool("online")
 
     override val primaryKey = PrimaryKey(identifier)
+
+    @Volatile
+    private var cachedPublic: Boolean? = null
 
     fun update(id: String, type: ServerType, public: Boolean, online: Boolean): CompletableFuture<Boolean> {
         return dba {
@@ -53,7 +59,51 @@ object DB_Server : Table("servers") {
         }
     }
 
+    /*
+     val exists = DB_Lobby.selectAll()
+                    .where { DB_Lobby.spawnpoint_world eq worldName }
+                    .count() > 0
+
+                if (exists) {
+                    DB_Lobby.update(
+                        where = { DB_Lobby.spawnpoint_world eq worldName }
+                    ) {
+                        it[center_x] = location.x
+                        it[center_y] = location.y
+                        it[center_z] = location.z
+                    }
+                } else {
+                    DB_Lobby.insert {
+                        it[spawnpoint_world] = worldName
+     */
+
+    /**
+     * @return Always returns true.
+     */
+    fun setPublic(id: String, bool: Boolean): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                cachedPublic = bool
+                val exists = DB_Server.selectAll()
+                    .where { DB_Server.identifier eq id }
+                    .count() > 0
+                if(exists) {
+                    DB_Server.update(where = { DB_Server.identifier eq id}) {
+                        it[public] = bool
+                    }
+                    true
+                } else {
+                    DB_Server.insert {
+                        it[public] = bool
+                    }
+                    true
+                }
+            }
+        }
+    }
+
     fun getPublic(id: String): CompletableFuture<Boolean> {
+        cachedPublic?.let { return CompletableFuture.completedFuture(it) }
         return dba {
             transaction {
                 DB_Server.selectAll()

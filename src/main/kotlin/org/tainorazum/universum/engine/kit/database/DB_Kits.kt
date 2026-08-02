@@ -12,9 +12,9 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.and
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.util.KitSerializer
-import org.tainorazum.universum.utility.ComponentSerializer
-import org.tainorazum.universum.utility.DatabaseUtil.dba
-import org.tainorazum.universum.utility.DatabaseUtil.mta
+import org.tainorazum.universum.utility.text.ComponentSerializer
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
+import org.tainorazum.universum.utility.database.DatabaseUtil.mta
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 

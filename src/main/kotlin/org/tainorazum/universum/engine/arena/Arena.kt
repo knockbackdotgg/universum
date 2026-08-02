@@ -2,6 +2,7 @@ package org.tainorazum.universum.engine.arena
 
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.bukkit.BukkitAdapter
+import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats
 import com.sk89q.worldedit.function.operation.Operations
 import com.sk89q.worldedit.math.BlockVector3
@@ -126,15 +127,17 @@ open class Arena(
     ): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
 
-        val worldRef = BukkitAdapter.adapt(targetLocation.world)
+        val world = targetLocation.world ?: run {
+            future.completeExceptionally(IllegalArgumentException("Target location world cannot be null."))
+            return future
+        }
 
-        val format = ClipboardFormats.findByAlias("schem")
-            ?: throw IllegalArgumentException("Unknown schematic format for memory buffer")
+        val worldRef = BukkitAdapter.adapt(world)
 
         CompletableFuture.runAsync {
             try {
                 ByteArrayInputStream(schematicBytes).use { inputStream ->
-                    format.getReader(inputStream).use { reader ->
+                    BuiltInClipboardFormat.SPONGE_SCHEMATIC.getReader(inputStream).use { reader ->
                         val clipboard = reader.read() ?: throw NullPointerException("Clipboard returned null")
 
                         val region = clipboard.region
@@ -145,7 +148,6 @@ open class Arena(
                         val adjustedPastePosition = bukkitTargetVector.subtract(originToCenterOffset.toBlockPoint())
 
                         WorldEdit.getInstance().newEditSession(worldRef).use { editSession ->
-
                             val operation = ClipboardHolder(clipboard)
                                 .createPaste(editSession)
                                 .to(adjustedPastePosition)
@@ -154,7 +156,7 @@ open class Arena(
                                 .build()
 
                             Operations.complete(operation)
-                            editSession.flushQueue()
+                            editSession.close() // Close flushes queue and commits changes safely
                         }
                     }
                 }

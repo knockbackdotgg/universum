@@ -1,14 +1,12 @@
 package org.tainorazum.universum.server.visual
 
 import net.kyori.adventure.text.Component
-import org.tainorazum.universum.Universum
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.upsert
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
-import org.tainorazum.universum.utility.ComponentSerializer
-import org.tainorazum.universum.utility.DatabaseUtil.dba
+import org.tainorazum.universum.utility.text.ComponentSerializer
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import java.net.HttpURLConnection
 import java.net.URL

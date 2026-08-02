@@ -1,34 +1,31 @@
-package org.tainorazum.universum.command.universum
+package org.tainorazum.universum.command.universum.commands
 
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Bukkit
 import org.bukkit.Location
-import org.bukkit.entity.Player
-import org.tainorazum.universum.Universum
+import org.tainorazum.universum.command.universum.UniversumCommandSub
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
 import revxrsal.commands.annotation.Command
-import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 
 @Command("universum", "uni", "u")
-class UniversumCommandLobby : UniversumCommandGeneral(UniversumCommandSub.TEST) {
+class UniversumCommandLobby : UniversumCommandGeneral(UniversumCommandSub.LOBBY) {
 
-    override val tutorial : List<String> = mutableListOf(
-        "/universum lobby - Receive this help message.",
-        "/universum lobby setSpawn <worldName> <x> <y> <z> <yaw> <pitch> - Set the server/lobby's spawn to said location.",
-        "/universum lobby setSchematic - Set the lobby's schematic to your current FAWE clipboard schematic."
+    override val tutorial : List<Pair<String, String>> = mutableListOf(
+        Pair("/universum lobby", " Receive this help message."),
+        Pair("/universum lobby setSpawn <worldName> <x> <y> <z> <yaw> <pitch>", " Set the server/lobby's spawn to said location."),
+        Pair("/universum lobby setSchematic", " Set the lobby's schematic to your current FAWE clipboard schematic.")
     )
 
-    @Subcommand("setSchematic")
+    @Subcommand("lobby setSchematic")
     fun setSchematic(
         actor: BukkitCommandActor
-    ) {
-        if(!allowed(actor)) return
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_LOBBY) {
 
         val player = actor.requirePlayer()
         DB_Lobby.setSchematic(player).thenAccept { success ->
@@ -41,7 +38,7 @@ class UniversumCommandLobby : UniversumCommandGeneral(UniversumCommandSub.TEST) 
 
     }
 
-    @Subcommand("setSpawn")
+    @Subcommand("lobby setSpawn")
     fun setSpawn(
         actor: BukkitCommandActor,
         worldName: String,
@@ -50,8 +47,7 @@ class UniversumCommandLobby : UniversumCommandGeneral(UniversumCommandSub.TEST) 
         z: Double,
         yaw: Float,
         pitch: Float,
-    ) {
-        if(!allowed(actor)) return
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_LOBBY) {
 
         val player = actor.requirePlayer()
         var location: Location? = null

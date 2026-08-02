@@ -4,7 +4,7 @@ import org.bukkit.entity.Player
 import org.tainorazum.universum.engine.kit.database.DB_Kits.getDefaultKitJson
 import org.tainorazum.universum.engine.kit.database.DB_Kits.getKitJson
 import org.tainorazum.universum.engine.kit.util.KitSerializer
-import org.tainorazum.universum.utility.DatabaseUtil.mta
+import org.tainorazum.universum.utility.database.DatabaseUtil.mta
 import java.util.concurrent.CompletableFuture
 
 data class Kit(

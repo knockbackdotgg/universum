@@ -1,16 +1,14 @@
 package org.tainorazum.universum.engine.statistics.database
 
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.plus
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.tainorazum.universum.engine.game.gametypes.GameType
-import org.tainorazum.universum.utility.DatabaseUtil.dba
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors

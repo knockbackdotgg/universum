@@ -3,23 +3,20 @@ package org.tainorazum.universum.lobby.database
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
-import gg.flyte.twilight.data.sql.QueryBuilder.Companion.eq
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import org.tainorazum.universum.engine.arena.database.DB_ArenaLocations
-import org.tainorazum.universum.utility.DatabaseUtil.dba
+import org.tainorazum.universum.database.other.mediumBlob
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
-import kotlin.collections.set
+
 
 object DB_Lobby : Table("lobby") {
 
@@ -31,7 +28,7 @@ object DB_Lobby : Table("lobby") {
     val spawnpoint_pitch = float("spawnpoint_pitch")
     val spawnpoint_yaw = float("spawnpoint_yaw")
 
-    val map_schematic = blob("map_schematic")
+    val map_schematic = mediumBlob("map_schematic")
 
     val center_x = double("center_x")
     val center_y = double("center_y")
@@ -47,10 +44,6 @@ object DB_Lobby : Table("lobby") {
     private var cachedCenterLocation: Location? = null
     private var cachedSpawnLocation: Location? = null
 
-    /**
-     * Load lobby world from DB (blocking). Called once at startup.
-     * Returns true if successfully loaded and cached, false if no lobby row found.
-     */
     fun loadAndCacheBoundary(): Boolean {
         return try {
             var world: String? = null
@@ -64,7 +57,7 @@ object DB_Lobby : Table("lobby") {
                         world = row[spawnpoint_world]
                     }
                 }
-            }.get() // block and wait for completion
+            }.get()
 
             if (world != null) {
                 synchronized(cacheLock) {
@@ -80,13 +73,24 @@ object DB_Lobby : Table("lobby") {
         }
     }
 
-    /**
-     * Reads a player's FastAsyncWorldEdit / WorldEdit clipboard, calculates the schematic's
-     * center point, updates both the schematic blob and center coordinates in the database,
-     * and updates local memory caches.
-     */
-    fun setSchematic(player: Player): CompletableFuture<Boolean> {
+    fun clearSchematic(): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                val world = cachedLobbyWorld
+                if (world != null) {
+                    DB_Lobby.update(where = { DB_Lobby.spawnpoint_world eq world }) {
+                        it[map_schematic] = ExposedBlob(byteArrayOf())
+                    } > 0
+                } else {
+                    DB_Lobby.update {
+                        it[map_schematic] = ExposedBlob(byteArrayOf())
+                    } > 0
+                }
+            }
+        }
+    }
 
+    fun setSchematic(player: Player): CompletableFuture<Boolean> {
         val actor = BukkitAdapter.adapt(player)
         val session = WorldEdit.getInstance().sessionManager.get(actor)
 
@@ -99,7 +103,6 @@ object DB_Lobby : Table("lobby") {
         val clipboard = clipboardHolder.clipboard
         val region = clipboard.region
 
-        // Calculate geometric center of the clipboard bounds
         val centerVector = region.center
         val centerLocation = Location(
             player.world,
@@ -108,12 +111,12 @@ object DB_Lobby : Table("lobby") {
             centerVector.z()
         )
 
-        // Serialize clipboard to Sponge Schematic byte array
-        val bytes = ByteArrayOutputStream().use { outputStream ->
-            BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(outputStream).use { writer ->
+        // WorldEdit's SpongeSchematicWriter automatically handles GZIP compression internally
+        val bytes = ByteArrayOutputStream().use { baos ->
+            BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(baos).use { writer ->
                 writer.write(clipboard)
             }
-            outputStream.toByteArray()
+            baos.toByteArray()
         }
 
         val worldName = player.world.name
@@ -148,7 +151,6 @@ object DB_Lobby : Table("lobby") {
                     }
                 }
 
-                // Update local memory caches
                 synchronized(cacheLock) {
                     cachedLobbyWorld = worldName
                 }
@@ -157,13 +159,17 @@ object DB_Lobby : Table("lobby") {
             }
         }
     }
-
     fun getSchematicBytes(): CompletableFuture<ByteArray?> {
         return dba {
             transaction {
-                DB_Lobby.selectAll()
-                    .where { DB_Lobby.spawnpoint_world eq cachedLobbyWorld!! }
-                    .limit(1)
+                val world = cachedLobbyWorld
+                val query = if (world != null) {
+                    DB_Lobby.selectAll().where { DB_Lobby.spawnpoint_world eq world }
+                } else {
+                    DB_Lobby.selectAll()
+                }
+
+                query.limit(1)
                     .firstOrNull()
                     ?.get(map_schematic)?.bytes
             }
@@ -173,29 +179,36 @@ object DB_Lobby : Table("lobby") {
     fun setSpawnLocation(location: Location): CompletableFuture<Boolean> {
         return dba {
             transaction {
+                val worldName = location.world?.name ?: "world"
                 val exists = DB_Lobby.selectAll()
-                    .where { DB_Lobby.spawnpoint_world eq location.world.name }
+                    .where { DB_Lobby.spawnpoint_world eq worldName }
                     .count() > 0
 
                 if (exists) {
                     DB_Lobby.update(
-                        where = { DB_Lobby.spawnpoint_world eq location.world.name }
+                        where = { DB_Lobby.spawnpoint_world eq worldName }
                     ) {
-                        it[DB_Lobby.spawnpoint_x] = location.x
-                        it[DB_Lobby.spawnpoint_y] = location.y
-                        it[DB_Lobby.spawnpoint_z] = location.z
-                        it[DB_Lobby.spawnpoint_yaw] = location.yaw
-                        it[DB_Lobby.spawnpoint_pitch] = location.pitch
+                        it[spawnpoint_x] = location.x
+                        it[spawnpoint_y] = location.y
+                        it[spawnpoint_z] = location.z
+                        it[spawnpoint_yaw] = location.yaw
+                        it[spawnpoint_pitch] = location.pitch
                     }
                 } else {
                     DB_Lobby.insert {
-                        it[DB_Lobby.spawnpoint_world] = location.world.name
-                        it[DB_Lobby.spawnpoint_x] = location.x
-                        it[DB_Lobby.spawnpoint_y] = location.y
-                        it[DB_Lobby.spawnpoint_z] = location.z
-                        it[DB_Lobby.spawnpoint_yaw] = location.yaw
-                        it[DB_Lobby.spawnpoint_pitch] = location.pitch
+                        it[spawnpoint_world] = worldName
+                        it[spawnpoint_x] = location.x
+                        it[spawnpoint_y] = location.y
+                        it[spawnpoint_z] = location.z
+                        it[spawnpoint_yaw] = location.yaw
+                        it[spawnpoint_pitch] = location.pitch
+                        it[center_x] = location.x
+                        it[center_y] = location.y
+                        it[center_z] = location.z
                     }
+                }
+                synchronized(cacheLock) {
+                    cachedLobbyWorld = worldName
                 }
                 cachedSpawnLocation = location
                 true
@@ -207,18 +220,23 @@ object DB_Lobby : Table("lobby") {
         cachedSpawnLocation?.let { return CompletableFuture.completedFuture(it) }
         return dba {
             transaction {
-                val row = DB_Lobby.selectAll()
-                    .where { DB_Lobby.spawnpoint_world eq cachedLobbyWorld!! }
-                    .limit(1)
-                    .firstOrNull()
+                val world = cachedLobbyWorld
+                val row = if (world != null) {
+                    DB_Lobby.selectAll().where { DB_Lobby.spawnpoint_world eq world }.limit(1).firstOrNull()
+                } else {
+                    DB_Lobby.selectAll().limit(1).firstOrNull()
+                }
+
+                val worldName = row?.get(spawnpoint_world) ?: world ?: "world"
+                val bukkitWorld = Bukkit.getWorld(worldName) ?: Bukkit.getWorlds().first()
 
                 Location(
-                    Bukkit.getWorld(cachedLobbyWorld!!),
-                    row?.get(DB_Lobby.spawnpoint_x) ?: 0.0,
-                    row?.get(DB_Lobby.spawnpoint_y) ?: 200.0,
-                    row?.get(DB_Lobby.spawnpoint_z) ?: 0.0,
-                    row?.get(DB_Lobby.spawnpoint_yaw) ?: 0f,
-                    row?.get(DB_Lobby.spawnpoint_pitch) ?: 0f,
+                    bukkitWorld,
+                    row?.get(spawnpoint_x) ?: 0.0,
+                    row?.get(spawnpoint_y) ?: 200.0,
+                    row?.get(spawnpoint_z) ?: 0.0,
+                    row?.get(spawnpoint_yaw) ?: 0f,
+                    row?.get(spawnpoint_pitch) ?: 0f,
                 )
             }
         }
@@ -227,24 +245,34 @@ object DB_Lobby : Table("lobby") {
     fun setCenterLocation(location: Location): CompletableFuture<Boolean> {
         return dba {
             transaction {
+                val worldName = location.world?.name ?: "world"
                 val exists = DB_Lobby.selectAll()
-                    .where { DB_Lobby.spawnpoint_world eq location.world.name }
+                    .where { DB_Lobby.spawnpoint_world eq worldName }
                     .count() > 0
 
                 if (exists) {
                     DB_Lobby.update(
-                        where = { DB_Lobby.spawnpoint_world eq location.world.name }
+                        where = { DB_Lobby.spawnpoint_world eq worldName }
                     ) {
-                        it[DB_Lobby.center_x] = location.x
-                        it[DB_Lobby.center_y] = location.y
-                        it[DB_Lobby.center_z] = location.z
+                        it[center_x] = location.x
+                        it[center_y] = location.y
+                        it[center_z] = location.z
                     }
                 } else {
                     DB_Lobby.insert {
-                        it[DB_Lobby.center_x] = location.x
-                        it[DB_Lobby.center_y] = location.y
-                        it[DB_Lobby.center_z] = location.z
+                        it[spawnpoint_world] = worldName
+                        it[spawnpoint_x] = location.x
+                        it[spawnpoint_y] = location.y
+                        it[spawnpoint_z] = location.z
+                        it[spawnpoint_yaw] = 0f
+                        it[spawnpoint_pitch] = 0f
+                        it[center_x] = location.x
+                        it[center_y] = location.y
+                        it[center_z] = location.z
                     }
+                }
+                synchronized(cacheLock) {
+                    cachedLobbyWorld = worldName
                 }
                 cachedCenterLocation = location
                 true
@@ -256,38 +284,36 @@ object DB_Lobby : Table("lobby") {
         cachedCenterLocation?.let { return CompletableFuture.completedFuture(it) }
         return dba {
             transaction {
-                val row = DB_Lobby.selectAll()
-                    .where { DB_Lobby.spawnpoint_world eq cachedLobbyWorld!! }
-                    .limit(1)
-                    .firstOrNull()
+                val world = cachedLobbyWorld
+                val row = if (world != null) {
+                    DB_Lobby.selectAll().where { DB_Lobby.spawnpoint_world eq world }.limit(1).firstOrNull()
+                } else {
+                    DB_Lobby.selectAll().limit(1).firstOrNull()
+                }
+
+                val worldName = row?.get(spawnpoint_world) ?: world ?: "world"
+                val bukkitWorld = Bukkit.getWorld(worldName) ?: Bukkit.getWorlds().first()
 
                 Location(
-                    Bukkit.getWorld(cachedLobbyWorld!!),
-                    row?.get(DB_Lobby.center_x) ?: 0.0,
-                    row?.get(DB_Lobby.center_y) ?: 100.0,
-                    row?.get(DB_Lobby.center_z) ?: 0.0
+                    bukkitWorld,
+                    row?.get(center_x) ?: 0.0,
+                    row?.get(center_y) ?: 100.0,
+                    row?.get(center_z) ?: 0.0
                 )
             }
         }
     }
 
-    /**
-     * Fast, synchronous check: is location in the lobby world?
-     * If cache is not loaded, returns false. Must call loadAndCacheBoundary() at startup.
-     */
     fun isLocationInLobby(location: Location): Boolean {
         val lobbyWorld = cachedLobbyWorld ?: return false
         return location.world?.name == lobbyWorld
     }
 
-    /**
-     * Invalidate cache (e.g., if lobby was moved to a different world).
-     * Next access to isLocationInLobby will return false until loadAndCacheBoundary() is called again.
-     */
     fun invalidateCache() {
         synchronized(cacheLock) {
             cachedLobbyWorld = null
         }
+        cachedCenterLocation = null
+        cachedSpawnLocation = null
     }
-
 }

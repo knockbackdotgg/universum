@@ -15,8 +15,8 @@ import org.tainorazum.universum.engine.arena.database.DB_ArenaKits
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.punishment.DB_Punishments
 import org.tainorazum.universum.server.server.DB_Server
-import org.tainorazum.universum.server.punishment.DB_Punishments
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
 
@@ -49,21 +49,6 @@ class DatabaseManager {
         DB_Stats.startAutoFlush(30)
     }
 
-    fun createTables() {
-        create(EX_PlayerData)
-        create(DB_Arenas)
-        create(DB_ArenaLocations)
-        create(DB_Kits)
-        create(DB_ArenaGametypes)
-        create(DB_ArenaKits)
-        create(DB_Stats)
-        create(DB_VisualServer)
-        create(DB_Server)
-        create(DB_ServerSettings)
-        create(DB_Lobby)
-        //create(DB_Punishments)
-    }
-
     fun create(table: Table) {
         transaction {
             SchemaUtils.create(table)
@@ -79,4 +64,20 @@ class DatabaseManager {
             dataSource.close()
         }
     }
+
+    fun createTables() {
+        create(EX_PlayerData)
+        create(DB_Arenas)
+        create(DB_ArenaLocations)
+        create(DB_Kits)
+        create(DB_ArenaGametypes)
+        create(DB_ArenaKits)
+        create(DB_Stats)
+        create(DB_VisualServer)
+        create(DB_Server)
+        create(DB_ServerSettings)
+        create(DB_Lobby)
+        create(DB_Punishments)
+    }
+
 }

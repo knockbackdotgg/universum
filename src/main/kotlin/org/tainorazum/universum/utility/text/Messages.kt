@@ -25,6 +25,22 @@ object Messages {
         Component.text("Server is currently under maintenance, please try again later.", Colours.RED)
 
     fun WHITELIST_MSG() = Component.text("Server is currently whitelisted, please try again later.", Colours.RED)
+    fun BANNED_MSG_SHORT() = Component.text("You have been banned.", Colours.RED)
+    fun BANNED_MSG() =
+        Text.toSmallTextComponent("knockback.gg", Colours.DARK_GREY)
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("You have been banned.", Colours.RED))
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("ID » ", Colours.GREY).append(Component.text("#<id>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Type » ", Colours.GREY).append(Component.text("<type>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Reason » ", Colours.GREY).append(Component.text("<reason>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Duration » ", Colours.GREY).append(Component.text("<duration>", Colours.RED)))
+            .append(Component.newline()).append(Component.text("Banned on » ", Colours.GREY).append(Component.text("<banned>", Colours.RED)))
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("You will be unbanned on » ", Colours.GREY).append(Component.text("<unbanned>", Colours.GREEN)))
+            .append(Component.newline())
+            .append(Component.newline()).append(Component.text("If you believe this punishment to be wrong, you may appeal in our Discord server.", Colours.GREY))
+            .append(Component.newline()).append(Component.text("discord.gg/knockback", Colours.RED))
 
     // join/leave
     fun JOIN_MSG() = Component.text("+ <name>", Colours.GREEN)
@@ -49,7 +65,7 @@ object Messages {
         .append(Component.text("<gm>", Colours.YELLOW))
 
     // player
-    fun NO_PERMISSION_COMMAND() = Component.text("You are not allowed to execute this command!", Colours.RED)
+    fun NO_PERMISSION_COMMAND() = Component.text("You are not allowed to execute this command.", Colours.RED)
 
     // game: ffa
     fun FFA_DEATH_PERSONAL() = Component.text("You have been killed by <opponent>!", Colours.RED)

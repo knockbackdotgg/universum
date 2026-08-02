@@ -1,12 +1,11 @@
 package org.tainorazum.universum.server.setting
 
-import gg.flyte.twilight.data.sql.QueryBuilder.Companion.eq
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tainorazum.universum.Universum
 // transaction is handled by DatabaseUtil.dba()
-import org.tainorazum.universum.utility.DatabaseUtil.dba
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 

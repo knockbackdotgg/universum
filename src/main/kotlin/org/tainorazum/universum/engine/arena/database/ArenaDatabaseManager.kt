@@ -11,8 +11,8 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.tainorazum.universum.engine.game.gametypes.GameType
-import org.tainorazum.universum.utility.ComponentSerializer
-import org.tainorazum.universum.utility.DatabaseUtil.dba
+import org.tainorazum.universum.utility.text.ComponentSerializer
+import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.map

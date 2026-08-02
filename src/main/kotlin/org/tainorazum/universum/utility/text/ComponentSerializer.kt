@@ -1,4 +1,4 @@
-package org.tainorazum.universum.utility
+package org.tainorazum.universum.utility.text
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer

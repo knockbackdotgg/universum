@@ -8,6 +8,10 @@ data class Server(
 
 ) {
 
-    val public: CompletableFuture<Boolean> get() = DB_Server.getPublic(identifier)
+    val isValid : Boolean
+        get() = (identifier != "" && type != ServerType.NONE)
+
+    val public: CompletableFuture<Boolean>
+        get() = DB_Server.getPublic(identifier)
 
 }

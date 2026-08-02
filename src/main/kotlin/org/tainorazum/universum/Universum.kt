@@ -1,14 +1,18 @@
 package org.tainorazum.universum
 
 import gg.flyte.twilight.scheduler.delay
-import gg.flyte.twilight.time.TimeUnit
 import gg.flyte.twilight.twilight
+import net.luckperms.api.LuckPerms
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
-import org.tainorazum.universum.command.universum.UniversumCommandGeneral
-import org.tainorazum.universum.command.universum.UniversumCommandLobby
-import org.tainorazum.universum.command.universum.UniversumCommandSub
-import org.tainorazum.universum.command.universum.UniversumCommandTest
+import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
+import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
+import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
+import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
+import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
+import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
+import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
+import org.tainorazum.universum.command.universum.commands.UniversumCommandTest
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
@@ -16,18 +20,25 @@ import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.player.PlayerManager
+import org.tainorazum.universum.punishment.PunishmentManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.redis.RedisSubscriber
 import org.tainorazum.universum.redis.listeners.RM_GameRequest
+import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.server.Server
 import org.tainorazum.universum.server.server.ServerManager
 import org.tainorazum.universum.server.server.ServerType
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
 import org.tainorazum.universum.server.visual.VisualServerManager
+import org.tainorazum.universum.utility.other.parseDuration
+import org.tainorazum.universum.whitelist.WhitelistManager
 import revxrsal.commands.bukkit.BukkitLamp
+import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.logging.Level
+
 
 class Universum : JavaPlugin() {
 
@@ -44,6 +55,10 @@ class Universum : JavaPlugin() {
         lateinit var gameManager: GameManager private set
         lateinit var serverManager: ServerManager private set
         lateinit var visualServerManager: VisualServerManager private set
+        lateinit var luckperms: LuckPerms private set
+        lateinit var whitelistManager: WhitelistManager private set
+        lateinit var playerManager: PlayerManager private set
+        lateinit var punishmentManager: PunishmentManager private set
 
         // lobby servers
         lateinit var lobbyManager: LobbyManager private set
@@ -62,7 +77,19 @@ class Universum : JavaPlugin() {
 
         // dependencies & utils
         twilight(this)
-        val lamp = BukkitLamp.builder(this).build()
+        val lamp = BukkitLamp.builder(this)
+            .parameterTypes { types ->
+                types.addParameterType(Duration::class.java) { input, _ ->
+                    val text = input.readString()
+                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+            }
+            .build()
+
+        val provider = Bukkit.getServicesManager().getRegistration<LuckPerms?>(LuckPerms::class.java)
+        if (provider != null) {
+            luckperms = provider.getProvider()
+        }
 
         // redis
         DB_ServerSettings.set(ServerSetting.REDIS, config.get("redis.enabled") ?: false)
@@ -92,6 +119,9 @@ class Universum : JavaPlugin() {
         gameManager = GameManager()
         serverManager = ServerManager()
         visualServerManager = VisualServerManager()
+        whitelistManager = WhitelistManager()
+        playerManager = PlayerManager()
+        punishmentManager = PunishmentManager()
 
         // delay database-dependent initialization by a small amount to ensure tables are created
         delay(100) {
@@ -119,6 +149,12 @@ class Universum : JavaPlugin() {
         lamp.register(UniversumCommandGeneral())
         lamp.register(UniversumCommandTest())
         lamp.register(UniversumCommandLobby())
+        lamp.register(UniversumCommandDatabase())
+
+        lamp.register(AdminCommandGeneral())
+        lamp.register(AdminCommandWhitelist())
+        lamp.register(AdminCommandBypass())
+        lamp.register(AdminCommandPunishments())
 
         // whitelist
         delay(200) {
@@ -130,6 +166,7 @@ class Universum : JavaPlugin() {
                 }
             }
         }
+        serverManager.online()
     }
 
     override fun onDisable() {
@@ -147,6 +184,8 @@ class Universum : JavaPlugin() {
         delay(3000) {
             server.shutdown() // server can't run without this plugin
         }
+
+        serverManager.offline()
     }
 
     private fun open() : CompletableFuture<Boolean> {
