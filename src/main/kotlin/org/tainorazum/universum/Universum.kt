@@ -94,7 +94,6 @@ class Universum : JavaPlugin() {
                 logger.warning("Redis is enabled in config but failed to connect.")
             }
         }
-
         DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
 
         try {
