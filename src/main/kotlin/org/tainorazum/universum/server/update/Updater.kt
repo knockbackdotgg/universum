@@ -26,7 +26,7 @@ class Updater {
     }
 
     fun update() {
-        if (!Universum.instance.config.getBoolean("auto-update")) {
+        if (!Universum.instance.config.getBoolean("github.auto-update")) {
             Bukkit.getLogger().info("Not auto-updating.")
             return
         }
