@@ -100,6 +100,11 @@ object RedisManager {
         return activeConn.async().hget(key, field).toCompletableFuture()
     }
 
+    fun hgetall(key: String): CompletableFuture<Map<String, String>> {
+        val activeConn = connection() ?: return CompletableFuture.completedFuture(emptyMap())
+        return activeConn.async().hgetall(key).toCompletableFuture()
+    }
+
     fun hdel(key: String, field: String): CompletableFuture<Long> {
         val activeConn = connection() ?: return CompletableFuture.completedFuture(0L)
         return activeConn.async().hdel(key, field).thenApply { it.toLong() }.toCompletableFuture()

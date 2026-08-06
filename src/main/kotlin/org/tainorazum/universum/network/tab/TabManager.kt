@@ -11,9 +11,7 @@ import org.tainorazum.universum.Universum
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.permissions.LuckpermsUtil
 import org.tainorazum.universum.utility.text.Colours
-import org.tainorazum.universum.utility.text.Icon
 import org.tainorazum.universum.utility.text.Text
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
 object TabManager {
@@ -43,10 +41,8 @@ object TabManager {
 
         val playerFutures = mutableListOf<CompletableFuture<Triple<String, Int, Component>>>()
 
-        // Helper function to deserialize prefix properly
         fun parsePrefix(prefixRaw: String?): Component {
             val raw = prefixRaw ?: return Component.empty()
-            // Parses '&' color codes like &7, &l, &f, etc.
             return legacySerializer.deserialize(raw)
         }
 
@@ -60,7 +56,7 @@ object TabManager {
 
         // 2. Process remote network players asynchronously
         networkPlayers
-            .filter { np -> localOnlinePlayers.none { it.name == np.name } }
+            .filter { np -> np.name.isNotBlank() && localOnlinePlayers.none { it.name == np.name } }
             .forEach { np ->
                 val future = LuckpermsUtil.getWeight(np.uuid).thenCombine(LuckpermsUtil.getPrefix(np.uuid)) { weight, prefixRaw ->
                     Triple(np.name, weight, parsePrefix(prefixRaw))
@@ -71,12 +67,28 @@ object TabManager {
         // 3. Wait for all player LuckPerms futures to finish asynchronously before applying to scoreboard
         CompletableFuture.allOf(*playerFutures.toTypedArray()).thenAccept {
             val combinedData = playerFutures.map { it.join() }
+            val currentNetworkNames = combinedData.map { it.first }.toSet()
 
             // Switch to Bukkit main thread for rendering scoreboard teams & headers
             Bukkit.getScheduler().runTask(Universum.instance, Runnable {
                 for (viewer in localOnlinePlayers) {
                     viewer.sendPlayerListHeaderAndFooter(header, footer)
 
+                    val scoreboard = viewer.scoreboard
+
+                    // Cleanup entries that are no longer online on the network
+                    scoreboard.teams
+                        .filter { it.name.startsWith(TEAM_NAME_PREFIX) }
+                        .forEach { team ->
+                            team.entries.toList().forEach { entry ->
+                                if (!currentNetworkNames.contains(entry)) {
+                                    team.removeEntry(entry)
+                                    if (team.entries.isEmpty()) team.unregister()
+                                }
+                            }
+                        }
+
+                    // Update or register all network players
                     for (data in combinedData) {
                         updateTeamEntry(viewer, data.first, data.second, data.third)
                     }
@@ -111,6 +123,21 @@ object TabManager {
         if (!team.hasEntry(entryName)) {
             team.addEntry(entryName)
         }
+    }
+
+    /**
+     * Remove a specific remote player name from all active local scoreboards when they disconnect from network.
+     */
+    fun removeRemotePlayer(entryName: String) {
+        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+            for (viewer in Bukkit.getOnlinePlayers()) {
+                val scoreboard = viewer.scoreboard
+                scoreboard.getEntryTeam(entryName)?.let { team ->
+                    team.removeEntry(entryName)
+                    if (team.entries.isEmpty()) team.unregister()
+                }
+            }
+        })
     }
 
     /**
