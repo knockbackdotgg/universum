@@ -1,0 +1,55 @@
+# Chat Filter Configuration
+# The system automatically handles leetspeak, repeated characters, and hidden separators.
+
+blocked-words:
+  # Profanity & Vulgarity
+  - "fuck"
+  - "fucking"
+  - "fuckin"
+  - "fucker"
+  - "shit"
+  - "shitting"
+  - "shitter"
+  - "bitch"
+  - "bitching"
+  - "bastard"
+  - "asshole"
+  - "asswipe"
+  - "dick"
+  - "dickhead"
+  - "pussy"
+  - "cock"
+  - "cocksucker"
+  - "prick"
+  - "cunt"
+  - "whore"
+  - "slut"
+  - "twat"
+  - "wanker"
+  - "motherfucker"
+
+  # Hate Speech & Harassment
+  - "fag"
+  - "faggot"
+  - "nigger"
+  - "nigga"
+  - "retard"
+  - "retarded"
+  - "tranny"
+  - "dyke"
+
+  # Harm & Toxicity
+  - "kys"
+  - "kill yourself"
+  - "kms"
+
+  # Common Server Advertising Indicators
+  - "join my server"
+  - "http"
+  - "htp"
+  - "https"
+  - ".com"
+  - ".net"
+  - ".org"
+  - ".me"
+  - ".io"

@@ -7,11 +7,63 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+
+    // twilight
+    maven("https://repo.flyte.gg/releases")
+
+    // fawe
+    maven("https://maven.enginehub.org/repo/")
+
+    maven("https://repo.extendedclip.com/releases/")
+
+    // fancy npcs
+    maven("https://repo.fancyinnovations.com/releases")
 }
 
 dependencies {
+    // paper / default mc
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+
+    // twilight
+    implementation("gg.flyte:twilight:1.1.22")
+
+    // lamp
+    implementation("io.github.revxrsal:lamp.common:4.0.0-rc.14")
+    implementation("io.github.revxrsal:lamp.bukkit:4.0.0-rc.14")
+
+    // fawe
+    implementation(platform("com.intellectualsites.bom:bom-newest:1.56")) // Ref: https://github.com/IntellectualSites/bom
+    compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core")
+    compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit") { isTransitive = false }
+
+    // JetBrains Exposed core & DAO/DSL APIs (db)
+    implementation("org.jetbrains.exposed:exposed-core:0.50.0") // Use latest stable
+    implementation("org.jetbrains.exposed:exposed-dao:0.50.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.50.0")
+
+    // HikariCP for connection pooling (db)
+    implementation("com.zaxxer:HikariCP:7.0.2")
+
+    // Database Driver (e.g., MySQL or MariaDB driver) (db)
+    implementation("com.mysql:mysql-connector-j:8.3.0")
+
+    // Gson for JSON (kit serialization)
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Redis client (Lettuce)
+    implementation("io.lettuce:lettuce-core:6.2.4.RELEASE")
+    // ProtocolLib for packet-level listeners (compileOnly; server should provide the plugin)
+    compileOnly("net.dmulloy2:ProtocolLib:5.4.0")
+
+    // luckperms
+    compileOnly("net.luckperms:api:5.5")
+
+    // placeholder api
+    compileOnly("me.clip:placeholderapi:2.12.3")
+
+    // fancy npcs
+    compileOnly("de.oliver:FancyNpcs:2.9.2")
 }
 
 kotlin {

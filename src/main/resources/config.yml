@@ -1,0 +1,18 @@
+server:
+  identifier: "" # Same as proxy. Ex.: practice_game_1, practice_lobby_1,.;
+  type: LOBBY # Ex.: LOBBY, GAME, SURVIVAL,..
+
+database:
+  url: "jdbc:mysql://localhost:3306/minecraft_db"
+  username: "root"
+  password: "password"
+
+redis:
+  enabled: true
+  uri: 'redis://localhost:6379' # URI examples: redis://localhost:6379, redis://:password@host:6379/0
+
+github:
+  repo: ""
+  token: ""
+  auto-update: false
+  update-interval: 60
