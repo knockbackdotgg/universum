@@ -1,0 +1,89 @@
+name: Build & Release
+
+
+
+on:
+
+  push:
+
+    branches:
+
+      - v1
+
+
+
+jobs:
+
+  build-and-release:
+
+    name: Build & Release
+
+    runs-on: ubuntu-latest
+
+    if: contains(github.event.head_commit.message, '[publish]')
+
+    # Grants permission to upload the release to your repository
+
+    permissions:
+
+      contents: write
+
+
+
+    steps:
+
+      - name: Checkout repo
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Set up Java
+
+        uses: actions/setup-java@v4
+
+        with:
+
+          distribution: 'temurin'
+
+          java-version: '21'
+
+          cache: 'gradle' # Automatically caches your dependencies
+
+
+
+      - name: Set up Gradle
+
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.14
+
+
+
+      - name: Build shadowJar
+        run: gradle shadowJar --no-daemon
+
+      # NEW STEP: Generate the SHA-256 hash file
+      - name: Generate SHA-256 Hash
+        run: |
+          JAR_PATH="$(ls build/libs/*.jar | grep -v -E 'sources|javadoc' | head -n 1)"
+          if [ -z "$JAR_PATH" ]; then
+            echo "No jar found in build/libs"
+            exit 1
+          fi
+          echo "JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
+          sha256sum "$JAR_PATH" | awk '{ print $1 }' > "${JAR_PATH}.sha256"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          files: |
+            ${{ env.JAR_PATH }}
+            ${{ env.JAR_PATH }}.sha256
+          overwrite_files: true
+          fail_on_unmatched_files: true
+        env:
+          # Use the direct github context token instead of the secret alias
+          GITHUB_TOKEN: ${{ github.token }}
