@@ -40,6 +40,7 @@ import org.tainorazum.universum.server.server.ServerManager
 import org.tainorazum.universum.server.server.ServerType
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
+import org.tainorazum.universum.server.update.Updater
 import org.tainorazum.universum.server.visual.VisualServerManager
 import org.tainorazum.universum.setting.manager.PlayerSettingManager
 import org.tainorazum.universum.utility.other.parseDuration
@@ -72,6 +73,7 @@ class Universum : JavaPlugin() {
         lateinit var chatFilterManager: ChatFilterManager private set
         lateinit var cosmeticManager: CosmeticManager private set
         lateinit var playerSettingManager: PlayerSettingManager private set
+        lateinit var updater: Updater private set
 
         // lobby servers
         lateinit var lobbyManager: LobbyManager private set
@@ -116,6 +118,8 @@ class Universum : JavaPlugin() {
                 }
             }
             .build()
+
+        updater = Updater()
 
         lobbyManager = LobbyManager()
         adbm = ArenaDatabaseManager()
@@ -183,6 +187,8 @@ class Universum : JavaPlugin() {
                 if (success) {
                     server.setWhitelist(false)
                     serverManager.online()
+
+                    update()
                 }
             }
         }
@@ -202,6 +208,13 @@ class Universum : JavaPlugin() {
         if (dbm != null) {
             logger.info("Database pool safely disconnected.")
         }
+    }
+
+    private fun update() {
+        val interval = config.getInt("update-interval").or(60)
+        Bukkit.getScheduler().runTaskTimer(this, Runnable {
+            updater.update()
+        }, 10L, interval * 20L)
     }
 
     private fun open(): CompletableFuture<Boolean> {
