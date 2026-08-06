@@ -13,6 +13,11 @@ repositories {
 
     // fawe
     maven("https://maven.enginehub.org/repo/")
+
+    maven("https://repo.extendedclip.com/releases/")
+
+    // fancy npcs
+    maven("https://repo.fancyinnovations.com/releases")
 }
 
 dependencies {
@@ -51,8 +56,14 @@ dependencies {
     // ProtocolLib for packet-level listeners (compileOnly; server should provide the plugin)
     compileOnly("net.dmulloy2:ProtocolLib:5.4.0")
 
+    // luckperms
     compileOnly("net.luckperms:api:5.5")
 
+    // placeholder api
+    compileOnly("me.clip:placeholderapi:2.12.3")
+
+    // fancy npcs
+    compileOnly("de.oliver:FancyNpcs:2.9.2")
 }
 
 kotlin {

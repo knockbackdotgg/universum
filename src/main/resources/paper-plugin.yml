@@ -7,6 +7,13 @@ load: POSTWORLD
 
 dependencies:
   server:
+    FancyNpcs:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    PlaceholderAPI:
+      load: BEFORE
+      required: true
     Multiverse-Core:
       load: BEFORE
       required: true

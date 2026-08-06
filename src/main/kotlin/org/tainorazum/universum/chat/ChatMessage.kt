@@ -5,7 +5,7 @@ import net.kyori.adventure.text.Component
 import java.util.UUID
 
 data class ChatMessage(
-    val uuid: UUID,
+    val uuid: UUID? = null, // null = server sent message
     val messageJson: String
 ) {
     fun getComponent(): Component {

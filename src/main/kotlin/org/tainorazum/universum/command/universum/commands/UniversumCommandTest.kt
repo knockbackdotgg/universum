@@ -15,7 +15,8 @@ class UniversumCommandTest : UniversumCommandGeneral(UniversumCommandSub.TEST) {
 
     override val tutorial : List<Pair<String, String>> = mutableListOf(
         Pair("/universum test", " Receive this help message."),
-        Pair("/universum test blackout <duration> <fadeOut> <title> <subTitle>", " Give yourself a temporary screen blackout (feature test).")
+        Pair("/universum test blackout <duration> <fadeOut> <title> <subTitle>", " Give yourself a temporary screen blackout (feature test)."),
+        Pair("/universum test statistic <", "Set your statistics in order to test.")
     )
 
     @Subcommand("test blackout")

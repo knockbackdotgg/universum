@@ -20,6 +20,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.block.*
 import org.bukkit.event.enchantment.EnchantItemEvent
 import org.bukkit.event.entity.*
+import org.bukkit.event.hanging.HangingBreakByEntityEvent
 import org.bukkit.event.hanging.HangingBreakEvent
 import org.bukkit.event.hanging.HangingPlaceEvent
 import org.bukkit.event.inventory.*
@@ -32,7 +33,9 @@ import org.bukkit.event.weather.ThunderChangeEvent
 import org.bukkit.event.weather.WeatherChangeEvent
 import org.bukkit.event.world.*
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.lobby.npc.NpcBouncer
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.tab.TabManager
 import org.tainorazum.universum.setting.DB_PlayerSettings
@@ -54,6 +57,7 @@ class LobbyManager {
 
     init {
         registerEventListener()
+        startNpcBouncer()
         build().thenAccept {
             if (it) success.complete(true)
         }.exceptionally { ex ->
@@ -63,7 +67,6 @@ class LobbyManager {
             null
         }
     }
-
     // interaction
 
     fun enter(player: Player): Boolean {
@@ -150,6 +153,16 @@ class LobbyManager {
         return future
     }
 
+    // npcs
+
+    private fun startNpcBouncer() {
+        NpcBouncer.startBouncerTask(
+            radius = 1.0,
+            launchStrength = 0.5,
+            upwardStrength = 0.2
+        )
+    }
+
     // events
 
     private fun registerEventListener() {
@@ -177,7 +190,7 @@ class LobbyManager {
                 Universum.instance.server.pluginManager.registerEvent(
                     eventClass,
                     listener,
-                    org.bukkit.event.EventPriority.NORMAL,
+                    org.bukkit.event.EventPriority.HIGH,
                     { _, event -> dispatchEvent(event) },
                     Universum.instance
                 )
@@ -247,10 +260,10 @@ class LobbyManager {
     }
 
     fun PLAYER_JOIN_EVENT(event: PlayerJoinEvent) {
-        NetworkPlayerManager.handleLocalJoin(event.player, Universum.server.identifier)
         enter(event.player)
 
-        event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
+        //event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
+        NetworkPlayerManager.broadcastJoin(event.player.name)
         event.player.gameMode = GameMode.SPECTATOR
 
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
@@ -262,12 +275,15 @@ class LobbyManager {
     }
 
     fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
-        NetworkPlayerManager.handleLocalQuit(event.player, Universum.server.identifier)
-        event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
         leave(event.player)
 
-        TabManager.leave(event.player)
-        DB_PlayerSettings.invalidateCache(event.player.uniqueId)
+        //event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
+        NetworkPlayerManager.broadcastLeave(event.player.name)
+
+        HologramPageManager.clearPlayer(event.player.uniqueId)
+
+        TabManager.leave(event.player) // change after network player leave update
+        DB_PlayerSettings.invalidateCache(event.player.uniqueId) // change after network player leave update
     }
 
     fun PLAYER_KICK_EVENT(event: PlayerKickEvent) {
@@ -366,6 +382,15 @@ class LobbyManager {
 
     private fun cancel(event: Event) {
         if (event is Cancellable) {
+            val player = getPlayerFromEvent(event)
+            when {
+                event !is PlayerJoinEvent &&
+                        event !is PlayerQuitEvent &&
+                        event !is PlayerTeleportEvent -> {
+                    if (player != null && Universum.playerManager.allowBypassLobby(player)) return
+                }
+            }
+
             event.isCancelled = true
         }
     }
@@ -375,11 +400,30 @@ class LobbyManager {
 
     private fun getPlayerFromEvent(event: Event): Player? {
         return when (event) {
+            // Standard Player & Chat events
             is PlayerEvent -> event.player
             is AsyncChatEvent -> event.player
             is InventoryClickEvent -> event.whoClicked as? Player
+
+            // Block events created by players
+            is BlockBreakEvent -> event.player
+            is BlockPlaceEvent -> event.player
+            is BlockIgniteEvent -> event.player
+
+            // Hanging entity events (e.g., paintings, item frames)
+            is HangingPlaceEvent -> event.player
+            is HangingBreakByEntityEvent -> event.remover as? Player
+
+            // Entity damage/interact events where a player is the damager/cause
+            is EntityDamageByEntityEvent -> event.damager as? Player
             is EntityEvent -> event.entity as? Player
-            is BlockEvent -> null
+
+            // Vehicle events where a player is driving/entering/destroying
+            is VehicleEnterEvent -> event.entered as? Player
+            is VehicleDestroyEvent -> event.attacker as? Player
+            is VehicleDamageEvent -> event.attacker as? Player
+
+            // Fallback: Use reflection for any custom or missing event containing a `getPlayer` method
             else -> {
                 try {
                     val method = event::class.java.getMethod("getPlayer")

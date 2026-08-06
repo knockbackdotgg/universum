@@ -12,5 +12,5 @@ data class NetworkPlayerEvent(
     val player: NetworkPlayer,
     val type: Type
 ) {
-    enum class Type { JOIN, QUIT }
+    enum class Type { JOIN, QUIT, BANNED, MUTED, KICKED }
 }

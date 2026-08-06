@@ -7,6 +7,7 @@ import net.kyori.adventure.title.Title
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Material
+import org.bukkit.Sound
 import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
@@ -348,6 +349,20 @@ object PlayerUtility {
                 null
             }
         }
+    }
+
+    // sound
+
+    fun Player.noSound() {
+        val sound = Sound.ENTITY_VILLAGER_NO
+        val volume = 0.7f
+        val pitch = 1.0f
+
+        player?.let { it.playSound(it, sound, volume, pitch) }
+    }
+
+    fun Player.sound(sound: Sound, volume: Float, pitch: Float) {
+        player?.let { it.playSound(it, sound, volume, pitch) }
     }
 
 }

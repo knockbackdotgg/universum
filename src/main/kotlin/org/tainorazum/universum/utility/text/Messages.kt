@@ -23,7 +23,7 @@ object Messages {
     fun WHITELIST_KICK_MSG() = Component.text("You have been kicked: Server whitelist enabled.", Colours.RED)
     fun MAINTENANCE_MSG() =
         Component.text("Server is currently under maintenance, please try again later.", Colours.RED)
-    fun CHAT_FILTER_MSG() = Component.text("You can't say that. Please refrain from hate speech, toxicity & profanity.", Colours.RED)
+    fun CHAT_FILTER_MSG() = Component.text("You can't say that.", Colours.RED)
     fun MUTED_MSG() =
         Component.newline()
             .append(Component.newline()).append(Component.text("You have been muted.", Colours.RED))

@@ -12,6 +12,7 @@ import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
+import org.tainorazum.universum.command.default.CycleHoloCommand
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
@@ -28,6 +29,8 @@ import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.tab.TabManager
+import org.tainorazum.universum.placeholders.holo.HoloStatsPlaceholder
+import org.tainorazum.universum.placeholders.stats.StatsPlaceholder
 import org.tainorazum.universum.player.PlayerManager
 import org.tainorazum.universum.punishment.PunishmentManager
 import org.tainorazum.universum.redis.RedisManager
@@ -77,6 +80,7 @@ class Universum : JavaPlugin() {
     override fun onEnable() {
         instance = this
         saveDefaultConfig()
+        twilight(this)
 
         val redisEnabled = config.getBoolean("redis.enabled", false)
         if (redisEnabled) {
@@ -98,8 +102,6 @@ class Universum : JavaPlugin() {
             Bukkit.getPluginManager().disablePlugin(this)
             return
         }
-
-        twilight(this)
 
         val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
         if (provider != null) {
@@ -143,14 +145,25 @@ class Universum : JavaPlugin() {
                 if (!DB_Lobby.loadAndCacheBoundary()) {
                     logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
                 }
-                DB_Stats.startAutoFlush(1)
             }
+        }
+
+        // placeholders
+
+        if (server.pluginManager.getPlugin("PlaceholderAPI") != null) {
+            StatsPlaceholder().register()
+            HoloStatsPlaceholder().register()
+
+            logger.info("Successfully registered PlaceholderAPI expansions!")
+        } else {
+            logger.warning("PlaceholderAPI not found! Hologram & stat placeholders will not function.")
         }
 
         // commands
 
         // default
         lamp.register(SettingsCommand())
+        lamp.register(CycleHoloCommand())
 
         // universum
         lamp.register(UniversumCommandGeneral())
@@ -176,6 +189,8 @@ class Universum : JavaPlugin() {
     }
 
     override fun onDisable() {
+        server.setWhitelist(true)
+
         serverManager.offline()
 
         DB_Stats.shutdownAndFlush()
