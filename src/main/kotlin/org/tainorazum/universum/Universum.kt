@@ -95,6 +95,8 @@ class Universum : JavaPlugin() {
             }
         }
 
+        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
+
         try {
             dbm = DatabaseManager()
             dbm?.init()
@@ -134,8 +136,6 @@ class Universum : JavaPlugin() {
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
         playerSettingManager = PlayerSettingManager()
-
-        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
 
         delay(20) {
             try {
