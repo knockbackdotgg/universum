@@ -21,7 +21,6 @@ class Updater {
         private const val TARGET_FILE = "universum-all.jar"
         private const val USER_AGENT = "PluginUpdater"
 
-        // Lazy properties prevent unnecessary lookups if auto-update is disabled
         private val GITHUB_REPO by lazy { Universum.instance.config.getString("github.repo") }
         private val GITHUB_TOKEN by lazy { Universum.instance.config.getString("github.token") }
     }
