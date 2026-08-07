@@ -79,7 +79,9 @@ class ChatManager {
                     .replace("%tag%", tag)
 
                 val jsonComponent = GsonComponentSerializer.gson().serialize(finalComponent)
-                val chatMessage = ChatMessage(uuid, jsonComponent)
+                val chatMessage = ChatMessage(uuid, jsonComponent, Universum.server)
+
+                sendMessage(chatMessage)
 
                 RedisManager.publish("chat_message", gson.toJson(chatMessage))
                 future.complete(true)

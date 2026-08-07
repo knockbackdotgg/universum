@@ -11,11 +11,14 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.chat.ChatMessage
+import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
 import org.tainorazum.universum.network.NetworkPlayer
 import org.tainorazum.universum.network.NetworkPlayerEvent
 import org.tainorazum.universum.network.tab.TabManager
+import org.tainorazum.universum.punishment.DB_Punishments
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.setting.DB_PlayerSettings
+import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
 import java.util.UUID
@@ -76,6 +79,10 @@ object NetworkPlayerManager {
         // Notify network of local server switch / join
         val payload = gson.toJson(NetworkPlayerEvent(netPlayer, NetworkPlayerEvent.Type.JOIN))
         RedisManager.publish(CHANNEL, payload)
+
+        PlayerUtility.cachePlayer(player.uniqueId, player.name)
+        DB_Punishments.getPunishments(player.uniqueId)
+        DB_PlayerCosmetics.getPlayerCosmetics(player.uniqueId).thenApply { }
     }
 
     /**
@@ -96,6 +103,9 @@ object NetworkPlayerManager {
 
         // Invalidate player settings cache safely now that they are off the network
         DB_PlayerSettings.invalidateCache(uuid)
+        PlayerUtility.uncachePlayer(uuid)
+        DB_Punishments.invalidate(uuid)
+        DB_PlayerCosmetics.invalidate(uuid)
 
         // Remove from tab
         if (removed != null) {
@@ -147,7 +157,7 @@ object NetworkPlayerManager {
 
     fun broadcast(message: Component) {
         val jsonComponent = GsonComponentSerializer.gson().serialize(message)
-        val chatMessage = ChatMessage(null, jsonComponent)
+        val chatMessage = ChatMessage(null, jsonComponent, Universum.server)
 
         RedisManager.publish("chat_message", gson.toJson(chatMessage))
     }

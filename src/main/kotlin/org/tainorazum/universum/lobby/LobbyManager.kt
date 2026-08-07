@@ -157,9 +157,9 @@ class LobbyManager {
 
     private fun startNpcBouncer() {
         NpcBouncer.startBouncerTask(
-            radius = 1.0,
-            launchStrength = 0.5,
-            upwardStrength = 0.2
+            radius = 1.5,
+            launchStrength = 1.5,
+            upwardStrength = 0.4
         )
     }
 
