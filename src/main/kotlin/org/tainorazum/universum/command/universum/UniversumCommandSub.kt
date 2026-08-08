@@ -6,7 +6,7 @@ import org.tainorazum.universum.command.universum.commands.UniversumCommandGener
 enum class UniversumCommandSub {
 
     GENERAL,
-    TEST,
+    OTHER,
     LOBBY,
     DATABASE,
     SERVERLIST

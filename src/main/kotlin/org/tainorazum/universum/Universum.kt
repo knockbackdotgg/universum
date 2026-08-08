@@ -17,7 +17,7 @@ import org.tainorazum.universum.command.universum.commands.UniversumCommandDatab
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
 import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
-import org.tainorazum.universum.command.universum.commands.UniversumCommandTest
+import org.tainorazum.universum.command.universum.commands.UniversumCommandOther
 import org.tainorazum.universum.cosmetic.manager.CosmeticManager
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
@@ -171,7 +171,7 @@ class Universum : JavaPlugin() {
 
         // universum
         lamp.register(UniversumCommandGeneral())
-        lamp.register(UniversumCommandTest())
+        lamp.register(UniversumCommandOther())
         lamp.register(UniversumCommandLobby())
         lamp.register(UniversumCommandDatabase())
         lamp.register(UniversumCommandServerList())
