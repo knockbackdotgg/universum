@@ -3,6 +3,8 @@ package org.tainorazum.universum.setting.manager.gui
 import gg.flyte.twilight.gui.GUI
 import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.TextComponent
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -13,6 +15,7 @@ import org.tainorazum.universum.setting.PlayerSetting
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
+import org.tainorazum.universum.utility.text.norm
 import java.util.concurrent.CompletableFuture
 
 object PlayerSettingGUI {
@@ -58,7 +61,7 @@ object PlayerSettingGUI {
                         previous.open(player)
                     }
                 } else {
-                    set('B', item(Material.BARRIER, Text.toSmallTextComponent("Close", Colours.RED), "Click to close this menu.")) {
+                    set('B', item(Material.ARROW, Text.toSmallTextComponent("Close", Colours.RED), "Click to close this menu.")) {
                         isCancelled = true
                         player.closeInventory()
                     }
@@ -85,7 +88,7 @@ object PlayerSettingGUI {
                             }
                         }
                     } else {
-                        set(slotIndex, item(Material.BARRIER, Text.toSmallTextComponent("No Setting Available", Colours.DARK_GREY), emptyList())) {
+                        set(slotIndex, item(Material.BARRIER, Text.toSmallTextComponent("No Setting Available", Colours.DARK_GREY).norm(), emptyList())) {
                             isCancelled = true
                         }
                     }
@@ -106,22 +109,25 @@ object PlayerSettingGUI {
     }
 
     private fun createSettingItem(setting: PlayerSetting, currentValue: String): ItemStack {
-        val loreList = mutableListOf(Component.empty())
+        val loreList = mutableListOf<Component>()
+
+        loreList.add(Component.text(setting.description, Colours.GREY).norm())
 
         setting.options.forEach { option ->
             if (option.equals(currentValue, ignoreCase = true)) {
-                loreList.add(Component.text("▶ $option", Colours.GREEN))
+                loreList.add(Component.text("▶ $option", Colours.GREEN).norm())
             } else {
-                loreList.add(Component.text("  $option", Colours.GREY))
+                loreList.add(Component.text("  $option", Colours.GREY).norm())
             }
         }
 
         loreList.add(Component.empty())
-        loreList.add(Component.text("Click to cycle setting.", Colours.DARK_GREY))
+        loreList.add(Component.text("Click to cycle setting.", Colours.DARK_GREY).norm())
+        loreList.add(Component.empty())
 
         return item(
-            Material.COMPARATOR,
-            Text.toSmallTextComponent(setting.name.lowercase().replaceFirstChar { it.uppercase() }, Colours.RED),
+            setting.material,
+            Component.text(setting.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }, Colours.YELLOW).norm(),
             loreList
         )
     }
@@ -140,12 +146,11 @@ object PlayerSettingGUI {
     private fun item(material: Material, name: Component, lore: String): ItemStack {
         return ItemStack(material).apply {
             editMeta { meta ->
-                meta.displayName(name)
+                meta.displayName(name.norm())
                 meta.lore(
                     listOf(
-                        Component.empty(),
-                        Component.text(lore, Colours.GREY),
-                        Component.empty()
+                        Component.text(lore, Colours.GREY).norm(),
+                        Component.empty().norm()
                     )
                 )
             }
