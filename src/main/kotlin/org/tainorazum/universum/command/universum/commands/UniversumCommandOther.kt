@@ -4,6 +4,8 @@ import net.kyori.adventure.text.Component
 import org.tainorazum.universum.command.universum.UniversumCommandSub
 import org.tainorazum.universum.engine.game.gametypes.GameType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
+import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
@@ -15,16 +17,31 @@ import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 
 @Command("universum", "uni", "u")
-class UniversumCommandTest : UniversumCommandGeneral(UniversumCommandSub.TEST) {
+class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER) {
 
     override val tutorial : List<Pair<String, String>> = mutableListOf(
-        Pair("/universum test", " Receive this help message."),
-        Pair("/universum test blackout <duration> <fadeOut> <title> <subTitle>", " Give yourself a temporary screen blackout (feature test)."),
-        Pair("/universum test statistic <id> <gameType> <ranked> <value>", "Set ayour own statistics in order to test."),
-        Pair("/universum test statistic <id> <gameType> <ranked> <value> <player>", "Set a player's statistics in order to test.")
+        Pair("/universum other", " Receive this help message."),
+        Pair("/universum other blackout <duration> <fadeOut> <title> <subTitle>", " Give yourself a temporary screen blackout (feature test)."),
+        Pair("/universum other statistic <id> <gameType> <ranked> <value>", "Set ayour own statistics in order to test."),
+        Pair("/universum other statistic <id> <gameType> <ranked> <value> <player>", "Set a player's statistics in order to test."),
+        Pair("/universum other playerCount reset", "Reset Redis' player count.")
     )
 
-    @Subcommand("test statistic")
+    @Subcommand("other playerCount reset")
+    fun playerCount(
+        actor: BukkitCommandActor
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_OTHER) {
+
+        actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Attempting to reset the player count saved in Redis...", Colours.GREY)))
+
+        RedisManager.del("network:players").thenAccept { result ->
+            NetworkPlayerManager.onlinePlayers.clear()
+
+            actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Successfully reset the player count saved in Redis.", Colours.GREEN)))
+        }
+    }
+
+    @Subcommand("other statistic")
     fun statistic(
         actor: BukkitCommandActor,
         id: String,
@@ -32,7 +49,7 @@ class UniversumCommandTest : UniversumCommandGeneral(UniversumCommandSub.TEST) {
         @Suggest("true", "false") ranked: Boolean,
         @Suggest("1", "2", "3", "50", "100", "500") value: Double,
         @Optional targetName: String? = null
-    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_TEST) {
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_OTHER) {
 
         val uuid = actor.uniqueId()
         if(targetName != null) {
@@ -59,14 +76,14 @@ class UniversumCommandTest : UniversumCommandGeneral(UniversumCommandSub.TEST) {
 
     }
 
-    @Subcommand("test blackout")
+    @Subcommand("other blackout")
     fun blackout(
         actor: BukkitCommandActor,
         duration: Int,
         fadeOut: Int,
         titleRaw: String,
         subTitleRaw: String,
-    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_TEST) {
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_OTHER) {
 
         val player = actor.requirePlayer()
         player.sendMessage(Component.newline())

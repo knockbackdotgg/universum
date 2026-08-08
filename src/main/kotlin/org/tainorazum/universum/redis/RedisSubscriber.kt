@@ -9,6 +9,7 @@ import org.tainorazum.universum.redis.listeners.RM_ChatMessage
 import org.tainorazum.universum.redis.listeners.RM_GameRequest
 import org.tainorazum.universum.redis.listeners.RM_Nametag
 import org.tainorazum.universum.redis.listeners.RM_Online
+import org.tainorazum.universum.redis.listeners.RM_VelocityEvents
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
 
@@ -84,5 +85,6 @@ object RedisSubscriber {
         RM_Online()
         RM_ChatMessage()
         RM_Nametag()
+        RM_VelocityEvents()
     }
 }

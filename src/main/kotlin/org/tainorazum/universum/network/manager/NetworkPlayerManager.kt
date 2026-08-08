@@ -89,6 +89,9 @@ object NetworkPlayerManager {
     fun handleVelocitySwitch(uuid: UUID, name: String, currentServer: String) {
         val netPlayer = NetworkPlayer(uuid, name, currentServer)
         onlinePlayers[uuid] = netPlayer
+
+        // Update Redis Hash with new server location
+        RedisManager.hset(REDIS_KEY, uuid.toString(), gson.toJson(netPlayer))
     }
 
     fun handleRemoteEvent(event: NetworkPlayerEvent) {
