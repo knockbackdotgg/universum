@@ -4,6 +4,7 @@ import com.destroystokyo.paper.event.server.PaperServerListPingEvent
 import gg.flyte.twilight.event.event
 import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.setting.ServerSetting
 import java.io.ByteArrayInputStream
@@ -43,6 +44,7 @@ class ServerManager {
                 Universum.instance.logger.log(Level.WARNING, "Failed to apply dynamic server list visuals during ping", e)
             }
 
+            numPlayers = NetworkPlayerManager.onlinePlayers.size
             maxPlayers = numPlayers + 1
         }
     }

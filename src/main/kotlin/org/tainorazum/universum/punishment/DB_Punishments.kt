@@ -11,10 +11,11 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.time.Duration
+import java.time.Instant
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
-import kotlin.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 object DB_Punishments : Table("punishments") {
 
@@ -34,6 +35,31 @@ object DB_Punishments : Table("punishments") {
 
     override val primaryKey = PrimaryKey(id)
 
+    // Local player punishment cache: UUID -> CompletableFuture<List<Punishment>>
+    private val cache = ConcurrentHashMap<UUID, CompletableFuture<List<Punishment>>>()
+
+    // =========================================================================
+    // Cache Management & Lifecycle
+    // =========================================================================
+
+    /**
+     * Clears local cache for a specific player UUID.
+     */
+    fun invalidate(uuid: UUID) {
+        cache.remove(uuid)
+    }
+
+    /**
+     * Clears the entire local punishment cache.
+     */
+    fun invalidateAll() {
+        cache.clear()
+    }
+
+    // =========================================================================
+    // Data Ingestion & Mutation (Invalidates Cache On Success)
+    // =========================================================================
+
     fun punish(punishment: Punishment): CompletableFuture<Boolean> {
         return dba {
             transaction {
@@ -48,6 +74,11 @@ object DB_Punishments : Table("punishments") {
                 }
                 true
             }
+        }.thenApply { success ->
+            if (success) {
+                invalidate(punishment.uuid) // Invalidate cache so new punishment appears immediately
+            }
+            success
         }
     }
 
@@ -63,24 +94,37 @@ object DB_Punishments : Table("punishments") {
                     }
                 ) {
                     it[archived] = true
-                }
-                true
+                } > 0
             }
+        }.thenApply { updated ->
+            if (updated) {
+                invalidate(uuid)
+            }
+            updated
         }
     }
 
     fun archivePunishment(id: Int): CompletableFuture<Boolean> {
         return dba {
             transaction {
-                DB_Punishments.update(
-                    {
-                        DB_Punishments.id eq id
-                    }
+                // Find target UUID first to selectively invalidate their cache
+                val targetUuid = DB_Punishments.selectAll()
+                    .where { DB_Punishments.id eq id }
+                    .singleOrNull()?.get(DB_Punishments.playerUuid)
+
+                val updatedCount = DB_Punishments.update(
+                    { DB_Punishments.id eq id }
                 ) {
                     it[archived] = true
                 }
-                true
+
+                targetUuid to (updatedCount > 0)
             }
+        }.thenApply { (uuidStr, success) ->
+            if (success && uuidStr != null) {
+                invalidate(UUID.fromString(uuidStr))
+            }
+            success
         }
     }
 
@@ -89,79 +133,100 @@ object DB_Punishments : Table("punishments") {
             transaction {
                 DB_Punishments.deleteWhere {
                     DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.id eq id)
-                }
-                true
+                } > 0
             }
+        }.thenApply { deleted ->
+            if (deleted) {
+                invalidate(uuid)
+            }
+            deleted
         }
     }
 
-    fun getPunishments(): CompletableFuture<List<Punishment>> {
-        return dba {
-            transaction {
-                DB_Punishments.selectAll()
-                    .map { row ->
-                        toPunishment(row)
-                    }
+    // =========================================================================
+    // Retrieval Methods (Serves From Cache)
+    // =========================================================================
+
+    /**
+     * Gets all punishments for a player UUID. Serves from local RAM cache if available.
+     */
+    fun getPunishments(uuid: UUID): CompletableFuture<List<Punishment>> {
+        return cache.computeIfAbsent(uuid) { id ->
+            val future = fetchPlayerPunishmentsFromDb(id)
+
+            // Remove failed future from cache so retries are allowed
+            future.whenComplete { _, throwable ->
+                if (throwable != null) {
+                    cache.remove(id)
+                }
+            }
+
+            future
+        }.thenCompose { list ->
+            // Passively check if any active punishments in cache have expired over time
+            var expiredAny = false
+            for (p in list) {
+                if (!p.archived && isExpired(p)) {
+                    expiredAny = true
+                    archivePunishment(p.id!!) // Update DB & invalidate cache asynchronously
+                }
+            }
+
+            if (expiredAny) {
+                // Return fresh DB query if expired punishments were auto-archived
+                fetchPlayerPunishmentsFromDb(uuid)
+            } else {
+                CompletableFuture.completedFuture(list)
             }
         }
     }
 
     fun getPunishment(uuid: UUID, id: Int): CompletableFuture<List<Punishment>> {
-        return dba {
-            transaction {
-                DB_Punishments.selectAll()
-                    .where { DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.id eq id) }
-                    .map { row ->
-                        toPunishment(row)
-                    }
-            }
+        return getPunishments(uuid).thenApply { list ->
+            list.filter { it.id == id }
         }
     }
 
     fun getPunishments(uuid: UUID, type: PunishmentType): CompletableFuture<List<Punishment>> {
-        return dba {
-            transaction {
-                DB_Punishments.selectAll()
-                    .where { DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.type eq type) }
-                    .map { row ->
-                        toPunishment(row)
-                    }
-            }
+        return getPunishments(uuid).thenApply { list ->
+            list.filter { it.type == type }
         }
     }
 
     fun getPunishments(uuid: UUID, punisherUuid: UUID): CompletableFuture<List<Punishment>> {
-        return dba {
-            transaction {
-                DB_Punishments.selectAll()
-                    .where { DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.punisherUuid eq punisherUuid.toString()) }
-                    .map { row ->
-                        toPunishment(row)
-                    }
-            }
+        return getPunishments(uuid).thenApply { list ->
+            list.filter { it.punisherUuid == punisherUuid }
         }
     }
 
     fun getPunishments(uuid: UUID, archived: Boolean): CompletableFuture<List<Punishment>> {
+        return getPunishments(uuid).thenApply { list ->
+            list.filter { it.archived == archived }
+        }
+    }
+
+    /**
+     * Bypasses cache to fetch all global punishments across all players.
+     */
+    fun getPunishments(): CompletableFuture<List<Punishment>> {
         return dba {
             transaction {
                 DB_Punishments.selectAll()
-                    .where { DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.archived eq archived) }
-                    .map { row ->
-                        toPunishment(row)
-                    }
+                    .map { row -> toPunishment(row) }
             }
         }
     }
 
-    fun getPunishments(uuid: UUID): CompletableFuture<List<Punishment>> {
+    // =========================================================================
+    // Helpers & Expiration
+    // =========================================================================
+
+    private fun fetchPlayerPunishmentsFromDb(uuid: UUID): CompletableFuture<List<Punishment>> {
         return dba {
             transaction {
                 DB_Punishments.selectAll()
                     .where { DB_Punishments.playerUuid eq uuid.toString() }
-                    .map { row ->
-                        toPunishment(row)
-                    }
+                    .map { row -> toPunishment(row) }
             }
         }
     }
@@ -169,7 +234,7 @@ object DB_Punishments : Table("punishments") {
     fun toPunishment(row: ResultRow): Punishment {
         val rawMillis = row[DB_Punishments.duration]
 
-        val p = Punishment(
+        return Punishment(
             id = row[DB_Punishments.id],
             uuid = UUID.fromString(row[DB_Punishments.playerUuid]),
             type = row[DB_Punishments.type],
@@ -179,8 +244,13 @@ object DB_Punishments : Table("punishments") {
             punisherUuid = UUID.fromString(row[DB_Punishments.punisherUuid]),
             archived = row[DB_Punishments.archived]
         )
-        checkActive(p)
-        return p
+    }
+
+    private fun isExpired(punishment: Punishment): Boolean {
+        if (punishment.archived) return false
+        val duration = punishment.duration ?: return false
+        val expirationInstant = punishment.punishedOn.toInstant().plus(duration)
+        return Instant.now().isAfter(expirationInstant)
     }
 
     /**
@@ -194,7 +264,7 @@ object DB_Punishments : Table("punishments") {
             ?: return CompletableFuture.completedFuture(true)
 
         val expirationInstant = punishment.punishedOn.toInstant().plus(duration)
-        val isStillActive = java.time.Instant.now().isBefore(expirationInstant)
+        val isStillActive = Instant.now().isBefore(expirationInstant)
 
         if (!isStillActive) {
             return archivePunishment(punishment.id!!).thenApply { false }
@@ -202,5 +272,4 @@ object DB_Punishments : Table("punishments") {
 
         return CompletableFuture.completedFuture(true)
     }
-
 }

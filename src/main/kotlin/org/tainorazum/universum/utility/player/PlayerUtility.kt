@@ -20,6 +20,7 @@ import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.text.Messages
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -27,7 +28,113 @@ import java.util.concurrent.atomic.AtomicInteger
 
 object PlayerUtility {
 
-    // blackout
+    // =========================================================================
+    // Name & UUID Cache
+    // =========================================================================
+
+    private val uuidToNameCache = ConcurrentHashMap<UUID, String>()
+    private val nameToUuidCache = ConcurrentHashMap<String, UUID>() // Stored as lowercased string for case-insensitivity
+
+    /**
+     * Manually adds/updates a player's UUID and Name mapping in the cache.
+     */
+    fun cachePlayer(uuid: UUID, name: String) {
+        uuidToNameCache[uuid] = name
+        nameToUuidCache[name.lowercase(Locale.ROOT)] = uuid
+    }
+
+    /**
+     * Removes a player entry from the cache by UUID.
+     */
+    fun uncachePlayer(uuid: UUID) {
+        val name = uuidToNameCache.remove(uuid)
+        if (name != null) {
+            nameToUuidCache.remove(name.lowercase(Locale.ROOT))
+        }
+    }
+
+    /**
+     * Removes a player entry from the cache by username.
+     */
+    fun uncachePlayer(username: String) {
+        val uuid = nameToUuidCache.remove(username.lowercase(Locale.ROOT))
+        if (uuid != null) {
+            uuidToNameCache.remove(uuid)
+        }
+    }
+
+    /**
+     * Clears all cached UUIDs and Names.
+     */
+    fun clearNameAndUuidCache() {
+        uuidToNameCache.clear()
+        nameToUuidCache.clear()
+    }
+
+    // =========================================================================
+    // UUID / Name Resolution Methods (Cached)
+    // =========================================================================
+
+    fun getName(uuid: UUID): CompletableFuture<String?> {
+        // 1. Check local cache
+        val cachedName = uuidToNameCache[uuid]
+        if (cachedName != null) {
+            return CompletableFuture.completedFuture(cachedName)
+        }
+
+        // 2. Check if player is online
+        val onlinePlayer = Bukkit.getPlayer(uuid)
+        if (onlinePlayer != null) {
+            cachePlayer(uuid, onlinePlayer.name)
+            return CompletableFuture.completedFuture(onlinePlayer.name)
+        }
+
+        // 3. Fallback to async profile fetch
+        val profile = Bukkit.createPlayerProfile(uuid)
+        return profile.update().thenApply { updatedProfile ->
+            val name = updatedProfile.name
+            if (updatedProfile.uniqueId != null && name != null) {
+                cachePlayer(uuid, name)
+                name
+            } else {
+                null
+            }
+        }
+    }
+
+    fun getUUID(username: String): CompletableFuture<UUID?> {
+        val lowerName = username.lowercase(Locale.ROOT)
+
+        // 1. Check local cache
+        val cachedUuid = nameToUuidCache[lowerName]
+        if (cachedUuid != null) {
+            return CompletableFuture.completedFuture(cachedUuid)
+        }
+
+        // 2. Check if player is online
+        val onlinePlayer = Bukkit.getPlayerExact(username)
+        if (onlinePlayer != null) {
+            cachePlayer(onlinePlayer.uniqueId, onlinePlayer.name)
+            return CompletableFuture.completedFuture(onlinePlayer.uniqueId)
+        }
+
+        // 3. Fallback to async profile fetch
+        val profile = Bukkit.createPlayerProfile(username)
+        return profile.update().thenApply { updatedProfile ->
+            val fetchedUuid = updatedProfile.uniqueId
+            val fetchedName = updatedProfile.name
+            if (fetchedUuid != null && fetchedName != null) {
+                cachePlayer(fetchedUuid, fetchedName)
+                fetchedUuid
+            } else {
+                null
+            }
+        }
+    }
+
+    // =========================================================================
+    // Blackout
+    // =========================================================================
 
     private data class BlackoutSession(
         val originalMode: GameMode,
@@ -108,203 +215,120 @@ object PlayerUtility {
         pm.sendServerPacket(player, packet)
     }
 
-    // reset
+    // =========================================================================
+    // Reset
+    // =========================================================================
 
     fun reset(
-
         player: Player,
-
         gameMode: GameMode,
-
         health: Double = 20.0,
-
         foodLevel: Int = 20,
-
         saturation: Float = 20f,
-
         exhaustion: Float = 0f,
-
         isFlying: Boolean = false,
-
         allowFlight: Boolean = false,
-
         clearInventory: Boolean = true,
-
         armorContents: Array<ItemStack?> = arrayOfNulls(4),
-
         itemInOffHand: ItemStack = ItemStack(Material.AIR),
-
         itemOnCursor: ItemStack = ItemStack(Material.AIR),
-
         heldItemSlot: Int = 0,
-
         clearEnderPearls: Boolean = true,
-
         arrowsInBody: Int = 0,
-
         clearPotionEffects: Boolean = true,
-
         velocity: Vector = Vector(0.0, 0.0, 0.0),
-
         fireTicks: Int = 0,
-
         freezeTicks: Int = 0,
-
         fallDistance: Float = 0f,
-
         remainingAir: Int = 300,
-
         maximumAir: Int = 300,
-
         noDamageTicks: Int = 0,
-
         maximumNoDamageTicks: Int = 20,
-
         exp: Float = 0f,
-
         totalExperience: Int = 0,
-
         level: Int = 0,
-
         expCooldown: Int = 0,
-
         healthScale: Double = 20.0,
-
         setHealthScaled: Boolean = false,
-
         sprinting: Boolean = false,
-
         sneaking: Boolean = false,
-
         gliding: Boolean = false,
-
         swimming: Boolean = false,
-
         collidable: Boolean = true,
-
         invulnerable: Boolean = false,
-
         gravity: Boolean = true,
-
         walkSpeed: Float = 0.2f,
-
         flySpeed: Float = 0.1f,
-
         resetAttackCooldown: Boolean = true,
-
         portalCooldown: Int = 0,
-
         updateInventory: Boolean = true
-
     ) {
-
         player.gameMode = gameMode
-
         player.health = health
-
         player.foodLevel = foodLevel
-
         player.saturation = saturation
-
         player.exhaustion = exhaustion
-
         player.isFlying = isFlying
-
         player.allowFlight = allowFlight
 
         if (clearInventory) {
-
             player.closeInventory()
-
             player.inventory.clear()
-
         }
 
         player.inventory.armorContents = armorContents
-
         player.inventory.setItemInOffHand(itemInOffHand)
-
         player.setItemOnCursor(itemOnCursor)
-
         player.inventory.heldItemSlot = heldItemSlot
 
         if (clearEnderPearls) {
-
             player.enderPearls.forEach { it.remove() }
-
         }
 
         player.arrowsInBody = arrowsInBody
 
         if (clearPotionEffects) {
-
             player.clearActivePotionEffects()
-
         }
 
         player.velocity = velocity
-
         player.fireTicks = fireTicks
-
         player.freezeTicks = freezeTicks
-
         player.fallDistance = fallDistance
-
         player.remainingAir = remainingAir
-
         player.maximumAir = maximumAir
-
         player.noDamageTicks = noDamageTicks
-
         player.maximumNoDamageTicks = maximumNoDamageTicks
-
         player.exp = exp // visual xp bar
-
         player.totalExperience = totalExperience // raw xp points
-
         player.level = level
-
         player.expCooldown = expCooldown
-
         player.healthScale = healthScale
-
         player.isHealthScaled = setHealthScaled
-
         player.isSprinting = sprinting
-
         player.isSneaking = sneaking
-
         player.isGliding = gliding
-
         player.isSwimming = swimming
-
         player.isCollidable = collidable
-
         player.isInvulnerable = invulnerable
-
         player.setGravity(gravity)
-
         player.walkSpeed = walkSpeed
-
         player.flySpeed = flySpeed
 
         if (resetAttackCooldown) {
-
             player.resetCooldown()
-
         }
 
         player.portalCooldown = portalCooldown
 
         if (updateInventory) {
-
             player.updateInventory()
-
         }
-
     }
 
-    // permission
+    // =========================================================================
+    // Permission
+    // =========================================================================
 
     fun allowed(actor: BukkitCommandActor, permission: Permission): CompletableFuture<Boolean> {
         val player = actor.asPlayer() ?: return CompletableFuture.completedFuture(true)
@@ -325,33 +349,9 @@ object PlayerUtility {
         }
     }
 
-    // uuid
-
-    fun getName(uuid: UUID): CompletableFuture<String?> {
-        val profile = Bukkit.createPlayerProfile(uuid)
-
-        return profile.update().thenApply { updatedProfile ->
-            if (updatedProfile.uniqueId != null && updatedProfile.name != null) {
-                updatedProfile.name
-            } else {
-                null
-            }
-        }
-    }
-
-    fun getUUID(username: String): CompletableFuture<UUID?> {
-        val profile = Bukkit.createPlayerProfile(username)
-
-        return profile.update().thenApply { updatedProfile ->
-            if (updatedProfile.uniqueId != null && updatedProfile.name != null) {
-                updatedProfile.uniqueId
-            } else {
-                null
-            }
-        }
-    }
-
-    // sound
+    // =========================================================================
+    // Sound
+    // =========================================================================
 
     fun Player.noSound() {
         val sound = Sound.ENTITY_VILLAGER_NO
@@ -364,5 +364,4 @@ object PlayerUtility {
     fun Player.sound(sound: Sound, volume: Float, pitch: Float) {
         player?.let { it.playSound(it, sound, volume, pitch) }
     }
-
 }

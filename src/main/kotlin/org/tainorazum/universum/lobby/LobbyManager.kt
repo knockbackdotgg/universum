@@ -37,7 +37,6 @@ import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.lobby.npc.NpcBouncer
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
-import org.tainorazum.universum.network.tab.TabManager
 import org.tainorazum.universum.setting.DB_PlayerSettings
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.toHumanReadable
@@ -157,9 +156,9 @@ class LobbyManager {
 
     private fun startNpcBouncer() {
         NpcBouncer.startBouncerTask(
-            radius = 1.0,
-            launchStrength = 0.5,
-            upwardStrength = 0.2
+            radius = 1.5,
+            launchStrength = 1.5,
+            upwardStrength = 0.4
         )
     }
 
@@ -282,7 +281,6 @@ class LobbyManager {
 
         HologramPageManager.clearPlayer(event.player.uniqueId)
 
-        TabManager.leave(event.player) // change after network player leave update
         DB_PlayerSettings.invalidateCache(event.player.uniqueId) // change after network player leave update
     }
 

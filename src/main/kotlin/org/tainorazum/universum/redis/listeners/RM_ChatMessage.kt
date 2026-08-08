@@ -16,7 +16,10 @@ class RM_ChatMessage : RM_Channel("chat_message") {
         RedisSubscriber.register(channel) { message ->
             try {
                 val chatMessage = gson.fromJson(message, ChatMessage::class.java)
-                Universum.chatManager.sendMessage(chatMessage)
+                if(chatMessage.uuid == null) {
+                    Universum.chatManager.sendMessage(chatMessage)
+                }
+                else if(chatMessage.server != Universum.server) Universum.chatManager.sendMessage(chatMessage)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

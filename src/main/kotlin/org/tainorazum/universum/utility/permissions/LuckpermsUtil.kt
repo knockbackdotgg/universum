@@ -4,73 +4,148 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.luckperms.api.LuckPermsProvider
+import net.luckperms.api.event.group.GroupDataRecalculateEvent
+import net.luckperms.api.event.user.UserDataRecalculateEvent
+import net.luckperms.api.node.Node
 import net.luckperms.api.node.matcher.NodeMatcher
 import net.luckperms.api.node.types.PermissionNode
 import org.bukkit.entity.Player
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 object LuckpermsUtil {
 
     private val lp get() = LuckPermsProvider.get()
 
     /**
-     * Asynchronously gets the primary group weight for a player by UUID.
+     * Holds cached values for a user.
      */
-    fun getWeight(uuid: UUID): CompletableFuture<Int> {
-        return lp.userManager.loadUser(uuid).thenApply { user ->
-            val group = lp.groupManager.getGroup(user.primaryGroup)
-            group?.weight?.orElse(0) ?: 0
+    data class CachedUserData(
+        val weight: Int,
+        val prefix: String?,
+        val rankComponent: Component,
+        val nodes: List<Node>
+    )
+
+    // Cache stored as futures to prevent duplicate concurrent network/DB loads for the same UUID
+    private val userCache = ConcurrentHashMap<UUID, CompletableFuture<CachedUserData>>()
+
+    /**
+     * Lazily registers LuckPerms event listeners for automatic cache invalidation.
+     */
+    private val registerEvents by lazy {
+        val bus = lp.eventBus
+
+        // Invalidate specific user cache when their permissions, groups, or metadata recalculate
+        bus.subscribe(UserDataRecalculateEvent::class.java) { event ->
+            invalidate(event.user.uniqueId)
+        }
+
+        // Invalidate all user caches if a group's data/inheritance is recalculated
+        bus.subscribe(GroupDataRecalculateEvent::class.java) { _ ->
+            invalidateAll()
         }
     }
 
+    private fun ensureEventsRegistered() {
+        registerEvents
+    }
+
     /**
-     * Asynchronously gets the primary group weight for an online Player.
+     * Explicitly invalidates the cache for a specific player UUID.
      */
+    fun invalidate(uuid: UUID) {
+        userCache.remove(uuid)
+    }
+
+    /**
+     * Explicitly invalidates the entire cache.
+     */
+    fun invalidateAll() {
+        userCache.clear()
+    }
+
+    /**
+     * Fetches cached user data, or loads and caches it from LuckPerms if missing/invalidated.
+     */
+    private fun getUserData(uuid: UUID): CompletableFuture<CachedUserData> {
+        ensureEventsRegistered()
+
+        return userCache.computeIfAbsent(uuid) { id ->
+            val future = lp.userManager.loadUser(id).thenApply { user ->
+                val queryOptions = lp.contextManager.getQueryOptions(user)
+                    .orElseGet { lp.contextManager.staticQueryOptions }
+
+                val metaData = user.cachedData.getMetaData(queryOptions)
+                val prefix = metaData.prefix
+                val group = lp.groupManager.getGroup(user.primaryGroup)
+                val weight = group?.weight?.orElse(0) ?: 0
+                val rankComp = parsePrefix(prefix ?: "")
+                val nodes = user.nodes.toList()
+
+                CachedUserData(weight, prefix, rankComp, nodes)
+            }
+
+            // Remove from cache if loading failed to allow retries
+            future.whenComplete { _, throwable ->
+                if (throwable != null) {
+                    userCache.remove(id)
+                }
+            }
+
+            future
+        }
+    }
+
+    // =========================================================================
+    // Getters (Utilizes Cache)
+    // =========================================================================
+
+    fun getWeight(uuid: UUID): CompletableFuture<Int> {
+        return getUserData(uuid).thenApply { it.weight }
+    }
+
     fun getWeight(player: Player): CompletableFuture<Int> {
         return getWeight(player.uniqueId)
     }
 
-    /**
-     * Asynchronously gets the raw prefix string for a player by UUID.
-     */
     fun getPrefix(uuid: UUID): CompletableFuture<String?> {
-        return lp.userManager.loadUser(uuid).thenApply { user ->
-            val queryOptions = lp.contextManager.getQueryOptions(user)
-                .orElseGet { lp.contextManager.staticQueryOptions }
-            user.cachedData.getMetaData(queryOptions).prefix
-        }
+        return getUserData(uuid).thenApply { it.prefix }
     }
 
-    /**
-     * Asynchronously gets the raw prefix string for an online Player.
-     */
     fun getPrefix(player: Player): CompletableFuture<String?> {
         return getPrefix(player.uniqueId)
     }
 
     fun getRankComponent(uuid: UUID): CompletableFuture<Component> {
-        return lp.userManager.loadUser(uuid).thenApply { user ->
-            val queryOptions = lp.contextManager.getQueryOptions(user)
-                .orElseGet { lp.contextManager.staticQueryOptions }
+        return getUserData(uuid).thenApply { it.rankComponent }
+    }
 
-            val metaData = user.cachedData.getMetaData(queryOptions)
-            val prefix = metaData.prefix ?: ""
-
-            parsePrefix(prefix)
+    fun hasPermission(uuid: UUID, permission: String): CompletableFuture<Boolean> {
+        return getUserData(uuid).thenApply { data ->
+            data.nodes.any { it.key.equals(permission, ignoreCase = true) && it.value && !it.hasExpired() }
         }
     }
 
-    private fun parsePrefix(prefix: String): Component {
-        if (prefix.isBlank()) return Component.empty()
+    fun getExpiry(uuid: UUID, permission: String): CompletableFuture<Duration?> {
+        return getUserData(uuid).thenApply { data ->
+            val node = data.nodes.firstOrNull {
+                it.key.equals(permission, ignoreCase = true) && it.value && !it.hasExpired()
+            }
 
-        return if (prefix.contains("<") && prefix.contains(">")) {
-            MiniMessage.miniMessage().deserialize(prefix)
-        } else {
-            LegacyComponentSerializer.legacyAmpersand().deserialize(prefix)
+            if (node != null && node.hasExpiry()) {
+                node.expiryDuration
+            } else {
+                null
+            }
         }
     }
+
+    // =========================================================================
+    // Mutators (Invalidates Cache On Change)
+    // =========================================================================
 
     fun givePermission(
         uuid: UUID,
@@ -79,9 +154,7 @@ object LuckpermsUtil {
         value: Boolean = true
     ): CompletableFuture<Boolean> {
         return lp.userManager.loadUser(uuid).thenApply { user ->
-            val nodeBuilder = PermissionNode.builder(permission)
-                .value(value)
-
+            val nodeBuilder = PermissionNode.builder(permission).value(value)
             duration?.let { nodeBuilder.expiry(it) }
 
             val node = nodeBuilder.build()
@@ -89,6 +162,7 @@ object LuckpermsUtil {
 
             if (result.wasSuccessful()) {
                 lp.userManager.saveUser(user)
+                invalidate(uuid) // Invalidate cache immediately
                 true
             } else {
                 false
@@ -120,6 +194,7 @@ object LuckpermsUtil {
 
             if (removedAny) {
                 lp.userManager.saveUser(user)
+                invalidate(uuid) // Invalidate cache immediately
             }
 
             removedAny
@@ -130,30 +205,24 @@ object LuckpermsUtil {
         return removePermission(player.uniqueId, permission)
     }
 
-    fun hasPermission(uuid: UUID, permission: String): CompletableFuture<Boolean> {
-        return lp.userManager.loadUser(uuid).thenApply { user ->
-            user.nodes.asSequence().any { it.key == permission && it.value }
-        }
-    }
-
-    fun getExpiry(uuid: UUID, permission: String): CompletableFuture<Duration?> {
-        return lp.userManager.loadUser(uuid).thenApply { user ->
-            val node = user.nodes.asSequence()
-                .filter { it.key == permission && it.value }
-                .firstOrNull()
-
-            if (node != null && node.hasExpiry()) {
-                node.expiryDuration
-            } else {
-                null
-            }
-        }
-    }
-
     fun getPlayersWithPermission(permission: String): CompletableFuture<List<UUID>> {
         val matcher = NodeMatcher.key(PermissionNode.builder(permission).build())
         return lp.userManager.searchAll(matcher).thenApply { results ->
             results.keys.toList()
+        }
+    }
+
+    // =========================================================================
+    // Internal Helpers
+    // =========================================================================
+
+    private fun parsePrefix(prefix: String): Component {
+        if (prefix.isBlank()) return Component.empty()
+
+        return if (prefix.contains("<") && prefix.contains(">")) {
+            MiniMessage.miniMessage().deserialize(prefix)
+        } else {
+            LegacyComponentSerializer.legacyAmpersand().deserialize(prefix)
         }
     }
 }

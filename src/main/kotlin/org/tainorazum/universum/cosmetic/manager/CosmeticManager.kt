@@ -19,35 +19,6 @@ class CosmeticManager {
      * - [CosmeticType.TRAIL], [CosmeticType.AURA] -> Returns their respective [CosmeticData] objects
      */
     fun get(uuid: UUID, type: CosmeticType): CompletableFuture<Any?> {
-        return DB_PlayerCosmetics.getEnabled(uuid, type).thenCompose { enabledName ->
-            if (enabledName == null) {
-                CompletableFuture.completedFuture(null)
-            } else {
-                DB_Cosmetics.getCosmetic(type, enabledName).thenApply { data ->
-                    when (data) {
-                        is CosmeticData.Tag -> {
-                            Component.text("[", Colours.DARK_GREY)
-                                .append(data.component)
-                                .append(Component.text("] ", Colours.DARK_GREY))
-                        }
-
-                        is CosmeticData.Pet -> data
-
-                        is CosmeticData.ArmorTrim -> data.material
-
-                        is CosmeticData.ArmorTrimColor -> data.material
-
-                        is CosmeticData.Trail -> data
-
-                        is CosmeticData.Aura -> data
-
-                        null -> {
-                            println("[Cosmetics] Enabled cosmetic '$enabledName' not found in database for $uuid.")
-                            null
-                        }
-                    }
-                }
-            }
-        }
+        return DB_PlayerCosmetics.get(uuid, type)
     }
 }

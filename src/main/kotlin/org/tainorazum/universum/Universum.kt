@@ -28,7 +28,6 @@ import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
-import org.tainorazum.universum.network.tab.TabManager
 import org.tainorazum.universum.placeholders.holo.HoloStatsPlaceholder
 import org.tainorazum.universum.placeholders.stats.StatsPlaceholder
 import org.tainorazum.universum.player.PlayerManager
