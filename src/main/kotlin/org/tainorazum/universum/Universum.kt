@@ -5,7 +5,6 @@ import gg.flyte.twilight.twilight
 import net.luckperms.api.LuckPerms
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
-import org.tainorazum.universum.Universum.Companion
 import org.tainorazum.universum.chat.manager.ChatFilterManager
 import org.tainorazum.universum.chat.manager.ChatManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
@@ -28,6 +27,7 @@ import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
+import org.tainorazum.universum.network.nametag.NametagManager
 import org.tainorazum.universum.placeholders.holo.HoloStatsPlaceholder
 import org.tainorazum.universum.placeholders.stats.StatsPlaceholder
 import org.tainorazum.universum.player.PlayerManager
@@ -134,6 +134,8 @@ class Universum : JavaPlugin() {
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
         playerSettingManager = PlayerSettingManager()
+
+        NametagManager.init()
 
         delay(20) {
             try {
