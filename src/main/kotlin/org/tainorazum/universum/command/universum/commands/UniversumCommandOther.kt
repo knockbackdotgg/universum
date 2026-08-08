@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component
 import org.tainorazum.universum.command.universum.UniversumCommandSub
 import org.tainorazum.universum.engine.game.gametypes.GameType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
@@ -31,11 +32,13 @@ class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER)
         actor: BukkitCommandActor
     ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_OTHER) {
 
-        actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Attempting to reset the player count saved in Redis.", Colours.GREY)))
+        actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Attempting to reset the player count saved in Redis...", Colours.GREY)))
+
         RedisManager.del("network:players").thenAccept { result ->
+            NetworkPlayerManager.onlinePlayers.clear()
+
             actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Successfully reset the player count saved in Redis.", Colours.GREEN)))
         }
-
     }
 
     @Subcommand("other statistic")
