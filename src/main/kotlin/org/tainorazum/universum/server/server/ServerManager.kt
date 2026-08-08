@@ -21,17 +21,14 @@ class ServerManager {
 
         event<PaperServerListPingEvent> {
             try {
-                // Fetch current active identifier (Instant from DB_ServerSettings cache)
                 val currentIdentifier = DB_ServerSettings.get(ServerSetting.CURRENT_MOTD)
                     .getNow(ServerSetting.CURRENT_MOTD.default).toString()
 
-                // Fetch MOTD component (Instant from motdCache)
                 val motd = Universum.visualServerManager.getMOTD(currentIdentifier).getNow(null)
                 if (motd != null) {
                     motd(motd)
                 }
 
-                // Fetch Favicon bytes (Instant from faviconCache)
                 val faviconBytes = Universum.visualServerManager.getFavicon(currentIdentifier).getNow(null)
                 if (faviconBytes != null) {
                     val bufferedImage = ImageIO.read(ByteArrayInputStream(faviconBytes))
@@ -44,8 +41,10 @@ class ServerManager {
                 Universum.instance.logger.log(Level.WARNING, "Failed to apply dynamic server list visuals during ping", e)
             }
 
-            numPlayers = NetworkPlayerManager.onlinePlayers.size
-            maxPlayers = numPlayers + 1
+            val count = NetworkPlayerManager.onlinePlayers.size
+
+            this.numPlayers = count
+            this.maxPlayers = count + 1
         }
     }
 
