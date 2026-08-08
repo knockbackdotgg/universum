@@ -7,6 +7,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.redis.listeners.RM_ChatMessage
 import org.tainorazum.universum.redis.listeners.RM_GameRequest
+import org.tainorazum.universum.redis.listeners.RM_Nametag
 import org.tainorazum.universum.redis.listeners.RM_Online
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
@@ -82,5 +83,6 @@ object RedisSubscriber {
         RM_GameRequest()
         RM_Online()
         RM_ChatMessage()
+        RM_Nametag()
     }
 }
