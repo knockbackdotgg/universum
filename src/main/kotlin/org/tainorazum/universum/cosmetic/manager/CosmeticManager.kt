@@ -21,4 +21,7 @@ class CosmeticManager {
     fun get(uuid: UUID, type: CosmeticType): CompletableFuture<Any?> {
         return DB_PlayerCosmetics.get(uuid, type)
     }
+
+
+
 }

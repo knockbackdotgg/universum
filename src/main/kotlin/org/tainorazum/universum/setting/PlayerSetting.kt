@@ -1,15 +1,27 @@
 package org.tainorazum.universum.setting
 
+import org.bukkit.Material
+
 enum class PlayerSetting(
-    val options: List<String> // default = 1st option
+    val options: List<String>, // default = 1st option
+    val description: String,
+    val material: Material,
 ) {
 
-    ALLOW_PRIVATE_MESSAGES(listOf("true", "false")),
+    ALLOW_PRIVATE_MESSAGES(
+        listOf("everyone", "friends", "none"), "Players who are able to send you private message.", Material.BOOK
+    ),
 
-    ALLOW_FRIEND_REQUESTS(listOf("true", "false")),
+    ALLOW_FRIEND_REQUESTS(
+        listOf("yes", "no"), "Are players allowed to send you friend requests.", Material.IRON_CHESTPLATE
+    ),
 
-    SEE_FRIEND_ACTIVITY(listOf("true", "false")),
+    SEE_FRIEND_ACTIVITY(
+        listOf("yes", "no"), "See your friends their activity. Ex.: Joins, leaves,..", Material.CLOCK
+    ),
 
-    CHAT_MODE(listOf("global", "friends", "none")),
+    CHAT_MODE(
+        listOf("global", "friends", "none"), "Whose messages you receive in chat.", Material.COMPASS
+    ),
 
 }

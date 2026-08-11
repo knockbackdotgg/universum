@@ -11,6 +11,7 @@ import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
+import org.tainorazum.universum.command.default.CosmeticsCommand
 import org.tainorazum.universum.command.default.CycleHoloCommand
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
@@ -168,6 +169,7 @@ class Universum : JavaPlugin() {
         // default
         lamp.register(SettingsCommand())
         lamp.register(CycleHoloCommand())
+        lamp.register(CosmeticsCommand())
 
         // universum
         lamp.register(UniversumCommandGeneral())
