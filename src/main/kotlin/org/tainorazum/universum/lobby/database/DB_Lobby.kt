@@ -12,6 +12,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.tainorazum.universum.database.other.longBlob
 import org.tainorazum.universum.database.other.mediumBlob
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.ByteArrayOutputStream
@@ -28,7 +29,7 @@ object DB_Lobby : Table("lobby") {
     val spawnpoint_pitch = float("spawnpoint_pitch")
     val spawnpoint_yaw = float("spawnpoint_yaw")
 
-    val map_schematic = mediumBlob("map_schematic")
+    val map_schematic = longBlob("map_schematic")
 
     val center_x = double("center_x")
     val center_y = double("center_y")

@@ -174,6 +174,7 @@ class LobbyManager {
             PlayerMoveEvent::class.java, PlayerTeleportEvent::class.java, AsyncChatEvent::class.java, AsyncPlayerPreLoginEvent::class.java,
             PlayerInteractEvent::class.java, PlayerInteractEntityEvent::class.java, PlayerDropItemEvent::class.java,
             PlayerRespawnEvent::class.java, PlayerItemConsumeEvent::class.java, PlayerSwapHandItemsEvent::class.java,
+            FoodLevelChangeEvent::class.java,
             PlayerFishEvent::class.java, PlayerCommandPreprocessEvent::class.java, PlayerBedEnterEvent::class.java, PlayerBedLeaveEvent::class.java,
             EntityDamageEvent::class.java, EntityDamageByEntityEvent::class.java, EntityDeathEvent::class.java,
             CreatureSpawnEvent::class.java, EntityTargetEvent::class.java, EntityCombustEvent::class.java,
@@ -215,6 +216,10 @@ class LobbyManager {
 
     // player
 
+    fun FOOD_LEVEL_CHANGE_EVENT(event: FoodLevelChangeEvent) {
+        event.foodLevel = 20
+        cancel(event)
+    }
     fun ASYNC_PLAYER_PRE_LOGIN_EVENT(event: AsyncPlayerPreLoginEvent) {
         try {
             val result = Universum.playerManager.allowJoin(event.uniqueId).get()
