@@ -17,6 +17,7 @@ import org.bukkit.potion.PotionEffectType
 import org.bukkit.util.Vector
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.security.Permission
+import org.tainorazum.universum.server.server.ServerType
 import org.tainorazum.universum.utility.text.Messages
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
@@ -338,8 +339,13 @@ object PlayerUtility {
     inline fun guard(
         actor: BukkitCommandActor,
         permission: Permission,
+        requireLobby: Boolean = false,
         crossinline action: () -> Unit
     ) {
+        if(Universum.server.type == ServerType.LOBBY && requireLobby) {
+            val player = actor.requirePlayer()
+            player.sendMessage(Messages.LOBBY_REQUIRED())
+        }
         allowed(actor, permission).thenAccept { isAllowed ->
             if (isAllowed) action()
             else {

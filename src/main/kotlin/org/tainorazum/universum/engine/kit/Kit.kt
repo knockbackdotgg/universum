@@ -1,14 +1,17 @@
 package org.tainorazum.universum.engine.kit
 
+import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.tainorazum.universum.engine.kit.database.DB_Kits.getDefaultKitJson
 import org.tainorazum.universum.engine.kit.database.DB_Kits.getKitJson
+import org.tainorazum.universum.engine.kit.database.DB_Kits.getMaterial
 import org.tainorazum.universum.engine.kit.util.KitSerializer
 import org.tainorazum.universum.utility.database.DatabaseUtil.mta
 import java.util.concurrent.CompletableFuture
 
 data class Kit(
-    val id: String
+    val id: String,
+    val material: Material
 ) {
 
     /**

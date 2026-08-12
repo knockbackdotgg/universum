@@ -47,7 +47,7 @@ class UniversumCommandLobby : UniversumCommandGeneral(UniversumCommandSub.LOBBY)
         z: Double,
         yaw: Float,
         pitch: Float,
-    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_LOBBY) {
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_LOBBY, true) {
 
         val player = actor.requirePlayer()
         var location: Location? = null

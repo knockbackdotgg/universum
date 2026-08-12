@@ -1,32 +1,19 @@
 package org.tainorazum.universum.command.admin.commands
 
-import gg.flyte.twilight.gui.GUI
-import gg.flyte.twilight.gui.GUI.Companion.openInventory
-import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
-import org.bukkit.Material
-import org.bukkit.entity.Player
-import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.SkullMeta
-import org.tainorazum.universum.Universum
 import org.tainorazum.universum.command.admin.AdminCommandSub
-import org.tainorazum.universum.punishment.PunishmentGUI
-import org.tainorazum.universum.punishment.PunishmentType
+import org.tainorazum.universum.punishment.gui.PunishmentGUI
+import org.tainorazum.universum.punishment.manager.PunishmentType
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.other.open
-import org.tainorazum.universum.utility.other.parseDuration
-import org.tainorazum.universum.utility.other.toHumanReadable
-import org.tainorazum.universum.utility.permissions.LuckpermsUtil
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
 import revxrsal.commands.annotation.Command
 import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
-import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
-import java.util.concurrent.CompletableFuture
 
 @Command("administrator", "admin", "a")
 class AdminCommandPunishments : AdminCommandGeneral(AdminCommandSub.PUNISHMENTS) {

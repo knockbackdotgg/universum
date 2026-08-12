@@ -272,8 +272,8 @@ class LobbyManager {
 
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
             Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                PlayerUtility.reset(event.player, GameMode.SURVIVAL)
                 event.player.teleport(loc)
+                PlayerUtility.reset(event.player, GameMode.SURVIVAL)
             })
         }
     }

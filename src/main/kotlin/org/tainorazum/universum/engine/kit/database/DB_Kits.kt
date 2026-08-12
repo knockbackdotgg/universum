@@ -1,6 +1,7 @@
 package org.tainorazum.universum.engine.kit.database
 
 import net.kyori.adventure.text.Component
+import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.jetbrains.exposed.sql.ResultRow
@@ -24,6 +25,7 @@ object DB_Kits : Table("db_kits") {
     val id = varchar("id", 100)
     val name = text("name") // frontend visual component
     val ownerUuid = varchar("owner_uuid", 36).default(DEFAULT_OWNER_MARKER)
+    val material = text("material").default(Material.PAPER.name)
     val kitJson = text("kit_json")
     val schemaVersion = integer("schema_version").default(1)
     val createdAt = long("created_at")
@@ -82,11 +84,10 @@ object DB_Kits : Table("db_kits") {
         return selectAll()
             .where { (DB_Kits.id eq id) and (DB_Kits.ownerUuid eq DEFAULT_OWNER_MARKER) }
             .limit(1)
-            .limit(1)
             .firstOrNull()
     }
 
-    private fun storeKit(id: String, name: Component, ownerUuid: UUID?, snapshot: KitSnapshot): Boolean {
+    private fun storeKit(id: String, name: Component?, ownerUuid: UUID?, snapshot: KitSnapshot, material: Material?): Boolean {
         val json = KitSerializer.inventoryToJson(
             snapshot.contents,
             snapshot.armor,
@@ -94,12 +95,21 @@ object DB_Kits : Table("db_kits") {
         )
         val ownerValue = ownerKey(ownerUuid)
 
+        // If no name is provided, try retrieving the existing name from DB; default to formatting the ID if it doesn't exist yet
+        val finalNameComponent = name ?: findKitRow(id, ownerUuid)?.get(DB_Kits.name)?.let {
+            ComponentSerializer.deserialize(it)
+        } ?: Component.text(id.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() })
+
+        // Retrieve existing material if material parameter is null
+        val finalMaterial = material?.name ?: findKitRow(id, ownerUuid)?.get(DB_Kits.material) ?: Material.PAPER.name
+
         deleteWhere { (DB_Kits.id eq id) and (DB_Kits.ownerUuid eq ownerValue) }
         insert {
             it[DB_Kits.id] = id
-            it[DB_Kits.name] = ComponentSerializer.serialize(name)
+            it[DB_Kits.name] = ComponentSerializer.serialize(finalNameComponent)
             it[DB_Kits.ownerUuid] = ownerValue
             it[DB_Kits.kitJson] = json
+            it[DB_Kits.material] = finalMaterial
             it[DB_Kits.schemaVersion] = 1
             it[DB_Kits.createdAt] = System.currentTimeMillis()
         }
@@ -107,28 +117,36 @@ object DB_Kits : Table("db_kits") {
     }
 
     /**
-     * @Usage Save personal kit as server Player.
+     * @Usage Save personal or default kit from a player's inventory.
      */
-    fun saveKitFromPlayer(id: String, name: Component, owner: UUID?, player: Player): CompletableFuture<Boolean> {
+    fun saveKitFromPlayer(id: String, player: Player, owner: UUID? = null): CompletableFuture<Boolean> {
         return snapshotPlayerInventory(player).thenCompose { snapshot ->
             dba {
-                storeKit(id, name, owner, snapshot)
+                storeKit(id, null, owner, snapshot, null)
             }
         }
     }
 
     /**
-    * @Usage Save default kit as server Administrator.
+     * @Usage Save default kit as server Administrator.
      */
-    fun saveDefaultKitFromPlayer(id: String, name: Component, player: Player): CompletableFuture<Boolean> {
-        return saveKitFromPlayer(id, name, null, player)
+    fun saveDefaultKitFromPlayer(id: String, player: Player, name: Component? = null, material: Material? = null): CompletableFuture<Boolean> {
+        return snapshotPlayerInventory(player).thenCompose { snapshot ->
+            dba {
+                storeKit(id, name, null, snapshot, material)
+            }
+        }
     }
 
     fun getKit(id: String, ownerUuid: UUID?): CompletableFuture<Kit?> {
         return dba {
             val row = findKitRow(id, ownerUuid) ?: return@dba null
+            val matName = row[DB_Kits.material]
+            val mat = runCatching { Material.valueOf(matName) }.getOrNull() ?: Material.PAPER
+
             Kit(
-                id = row[DB_Kits.id]
+                id = row[DB_Kits.id],
+                material = mat
             )
         }
     }
@@ -156,7 +174,7 @@ object DB_Kits : Table("db_kits") {
 
     fun resetKit(id: String): CompletableFuture<Int> {
         return dba {
-            deleteWhere { DB_Kits.id eq id }
+            deleteWhere { DB_Kits.id eq id and (DB_Kits.ownerUuid eq DEFAULT_OWNER_MARKER) }
         }
     }
 
@@ -175,4 +193,32 @@ object DB_Kits : Table("db_kits") {
     }
 
     fun resetAllKitsForPlayer(player: Player): CompletableFuture<Int> = resetAllKitsForPlayer(player.uniqueId)
+
+    fun getAllDefaultKits(): CompletableFuture<List<Kit>> {
+        return dba {
+            selectAll()
+                .where { DB_Kits.ownerUuid eq DEFAULT_OWNER_MARKER }
+                .map { row ->
+                    val matName = row[DB_Kits.material]
+                    val mat = runCatching { Material.valueOf(matName) }.getOrNull() ?: Material.PAPER
+
+                    Kit(
+                        id = row[DB_Kits.id],
+                        material = mat
+                    )
+                }
+        }
+    }
+
+    fun getMaterial(id: String): CompletableFuture<Material> {
+        return dba {
+            selectAll()
+                .where { (DB_Kits.id eq id) and (DB_Kits.ownerUuid eq DEFAULT_OWNER_MARKER) }
+                .limit(1)
+                .firstOrNull()
+                ?.get(DB_Kits.material)
+                ?.runCatching { Material.valueOf(this) }
+                ?.getOrNull() ?: Material.BARRIER
+        }
+    }
 }

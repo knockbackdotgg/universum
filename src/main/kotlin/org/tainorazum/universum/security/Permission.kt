@@ -25,6 +25,7 @@ enum class Permission(
     CMD_ADMIN_WHITELIST(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_PUNISHMENTS(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_BYPASS(listOf(Allowed.OWNER, Allowed.ADMIN)),
+    CMD_ADMIN_KITS(listOf(Allowed.OWNER, Allowed.ADMIN)),
 
     ;
 

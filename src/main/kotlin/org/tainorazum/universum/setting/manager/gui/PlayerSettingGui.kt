@@ -3,8 +3,6 @@ package org.tainorazum.universum.setting.manager.gui
 import gg.flyte.twilight.gui.GUI
 import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.TextComponent
-import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -12,13 +10,14 @@ import org.bukkit.inventory.ItemStack
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.setting.DB_PlayerSettings
 import org.tainorazum.universum.setting.PlayerSetting
+import org.tainorazum.universum.utility.gui.GuiUtility.item
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
 import org.tainorazum.universum.utility.text.norm
 import java.util.concurrent.CompletableFuture
 
-object PlayerSettingGUI {
+object PlayerSettingGui {
 
     /**
      * Asynchronously loads player setting data and constructs the GUI.
@@ -141,28 +140,5 @@ object PlayerSettingGUI {
 
         val nextIndex = (currentIndex + 1) % options.size
         return options[nextIndex]
-    }
-
-    private fun item(material: Material, name: Component, lore: String): ItemStack {
-        return ItemStack(material).apply {
-            editMeta { meta ->
-                meta.displayName(name.norm())
-                meta.lore(
-                    listOf(
-                        Component.text(lore, Colours.GREY).norm(),
-                        Component.empty().norm()
-                    )
-                )
-            }
-        }
-    }
-
-    private fun item(material: Material, name: Component, lore: List<Component>): ItemStack {
-        return ItemStack(material).apply {
-            editMeta { meta ->
-                meta.displayName(name)
-                meta.lore(lore)
-            }
-        }
     }
 }

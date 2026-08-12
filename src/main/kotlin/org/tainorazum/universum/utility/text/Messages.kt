@@ -81,6 +81,7 @@ object Messages {
 
     // player
     fun NO_PERMISSION_COMMAND() = Component.text("You are not allowed to execute this command.", Colours.RED)
+    fun LOBBY_REQUIRED() = Component.text("You are only able to execute this command in the lobby.", Colours.YELLOW)
 
     // game: ffa
     fun FFA_DEATH_PERSONAL() = Component.text("You have been killed by <opponent>!", Colours.RED)

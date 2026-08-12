@@ -14,7 +14,7 @@ import org.tainorazum.universum.chat.ChatMessage
 import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
 import org.tainorazum.universum.network.NetworkPlayer
 import org.tainorazum.universum.network.NetworkPlayerEvent
-import org.tainorazum.universum.punishment.DB_Punishments
+import org.tainorazum.universum.punishment.database.DB_Punishments
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.setting.DB_PlayerSettings
 import org.tainorazum.universum.utility.player.PlayerUtility

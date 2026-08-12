@@ -25,6 +25,7 @@ import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.kiteditor.editor.KitEditorManager
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
@@ -32,7 +33,7 @@ import org.tainorazum.universum.network.nametag.NametagManager
 import org.tainorazum.universum.placeholders.holo.HoloStatsPlaceholder
 import org.tainorazum.universum.placeholders.stats.StatsPlaceholder
 import org.tainorazum.universum.player.PlayerManager
-import org.tainorazum.universum.punishment.PunishmentManager
+import org.tainorazum.universum.punishment.manager.PunishmentManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.redis.RedisSubscriber
 import org.tainorazum.universum.server.server.Server
@@ -73,6 +74,7 @@ class Universum : JavaPlugin() {
         lateinit var chatFilterManager: ChatFilterManager private set
         lateinit var cosmeticManager: CosmeticManager private set
         lateinit var playerSettingManager: PlayerSettingManager private set
+        lateinit var kitEditorManager: KitEditorManager private set
         lateinit var updater: Updater private set
 
         // lobby servers
@@ -135,6 +137,7 @@ class Universum : JavaPlugin() {
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
         playerSettingManager = PlayerSettingManager()
+        kitEditorManager = KitEditorManager()
 
         NametagManager.init()
 
