@@ -38,8 +38,10 @@ import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.lobby.npc.NpcBouncer
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.setting.DB_PlayerSettings
+import org.tainorazum.universum.utility.maps.SchematicUtil.pasteSchematicTo
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.toHumanReadable
+import org.tainorazum.universum.utility.player.PlayerIsolationUtility
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
@@ -102,54 +104,6 @@ class LobbyManager {
             ex.printStackTrace()
             false
         }
-    }
-
-    private fun pasteSchematicTo(
-        schematicBytes: ByteArray,
-        targetLocation: Location,
-        ignoreAir: Boolean = false
-    ): CompletableFuture<Boolean> {
-        val future = CompletableFuture<Boolean>()
-
-        val world = targetLocation.world ?: run {
-            future.completeExceptionally(IllegalArgumentException("Target location world cannot be null."))
-            return future
-        }
-
-        val worldRef = BukkitAdapter.adapt(world)
-
-        CompletableFuture.runAsync {
-            try {
-                ByteArrayInputStream(schematicBytes).use { inputStream ->
-                    BuiltInClipboardFormat.SPONGE_SCHEMATIC.getReader(inputStream).use { reader ->
-                        val clipboard = reader.read() ?: throw NullPointerException("Clipboard returned null")
-
-                        val region = clipboard.region
-                        val schemCenter = region.center
-                        val originToCenterOffset = schemCenter.subtract(clipboard.origin.toVector3())
-
-                        val bukkitTargetVector = BlockVector3.at(targetLocation.x, targetLocation.y, targetLocation.z)
-                        val adjustedPastePosition = bukkitTargetVector.subtract(originToCenterOffset.toBlockPoint())
-
-                        WorldEdit.getInstance().newEditSession(worldRef).use { editSession ->
-                            val operation = ClipboardHolder(clipboard)
-                                .createPaste(editSession)
-                                .to(adjustedPastePosition)
-                                .ignoreAirBlocks(ignoreAir)
-                                .copyEntities(false)
-                                .build()
-
-                            Operations.complete(operation)
-                        }
-                    }
-                }
-                future.complete(true)
-            } catch (e: Exception) {
-                future.completeExceptionally(e)
-            }
-        }
-
-        return future
     }
 
     // npcs
@@ -266,6 +220,8 @@ class LobbyManager {
     fun PLAYER_JOIN_EVENT(event: PlayerJoinEvent) {
         enter(event.player)
 
+        PlayerIsolationUtility.handleNewPlayerJoin(event.player)
+
         //event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
         NetworkPlayerManager.broadcastJoin(event.player.name)
         event.player.gameMode = GameMode.SPECTATOR
@@ -280,6 +236,8 @@ class LobbyManager {
 
     fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
         leave(event.player)
+
+        PlayerIsolationUtility.handlePlayerQuit(event.player)
 
         //event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
         NetworkPlayerManager.broadcastLeave(event.player.name)
@@ -398,8 +356,8 @@ class LobbyManager {
         }
     }
 
-    private fun isPlayerInLobby(player: Player) = players.contains(player)
-    private fun isLocationInLobby(location: Location) = DB_Lobby.isLocationInLobby(location)
+    fun isPlayerInLobby(player: Player) = players.contains(player)
+    fun isLocationInLobby(location: Location) = DB_Lobby.isLocationInLobby(location)
 
     private fun getPlayerFromEvent(event: Event): Player? {
         return when (event) {

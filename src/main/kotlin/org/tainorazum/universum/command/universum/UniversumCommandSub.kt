@@ -9,7 +9,8 @@ enum class UniversumCommandSub {
     OTHER,
     LOBBY,
     DATABASE,
-    SERVERLIST
+    SERVERLIST,
+    KITEDITOR,
 
     ;
 

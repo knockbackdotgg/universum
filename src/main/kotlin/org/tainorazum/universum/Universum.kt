@@ -9,13 +9,16 @@ import org.tainorazum.universum.chat.manager.ChatFilterManager
 import org.tainorazum.universum.chat.manager.ChatManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
+import org.tainorazum.universum.command.admin.commands.AdminCommandKits
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.default.CosmeticsCommand
 import org.tainorazum.universum.command.default.CycleHoloCommand
+import org.tainorazum.universum.command.default.KitEditorCommand
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
+import org.tainorazum.universum.command.universum.commands.UniversumCommandKitEditor
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
 import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.command.universum.commands.UniversumCommandOther
@@ -25,6 +28,7 @@ import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.kiteditor.editor.KitEditorManager
 import org.tainorazum.universum.lobby.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
@@ -153,6 +157,9 @@ class Universum : JavaPlugin() {
                 if (!DB_Lobby.loadAndCacheBoundary()) {
                     logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
                 }
+                if(!DB_KitEditor.loadAndCacheBoundary()) {
+                    logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
+                }
             }
         }
 
@@ -173,6 +180,7 @@ class Universum : JavaPlugin() {
         lamp.register(SettingsCommand())
         lamp.register(CycleHoloCommand())
         lamp.register(CosmeticsCommand())
+        lamp.register(KitEditorCommand())
 
         // universum
         lamp.register(UniversumCommandGeneral())
@@ -180,12 +188,14 @@ class Universum : JavaPlugin() {
         lamp.register(UniversumCommandLobby())
         lamp.register(UniversumCommandDatabase())
         lamp.register(UniversumCommandServerList())
+        lamp.register(UniversumCommandKitEditor())
 
         // admin
         lamp.register(AdminCommandGeneral())
         lamp.register(AdminCommandWhitelist())
         lamp.register(AdminCommandBypass())
         lamp.register(AdminCommandPunishments())
+        lamp.register(AdminCommandKits())
 
         delay(40) {
             open().thenAccept { success ->
@@ -227,9 +237,10 @@ class Universum : JavaPlugin() {
 
         val arenaManagerFuture = arenaManager.success
         val lobbyManagerFuture = lobbyManager.success
+        val kitEditorManagerFuture = kitEditorManager.success
 
-        CompletableFuture.allOf(arenaManagerFuture, lobbyManagerFuture).thenAccept {
-            val allSuccess = arenaManagerFuture.join() && lobbyManagerFuture.join()
+        CompletableFuture.allOf(arenaManagerFuture, lobbyManagerFuture, kitEditorManagerFuture).thenAccept {
+            val allSuccess = arenaManagerFuture.join() && lobbyManagerFuture.join() && kitEditorManagerFuture.join()
             future.complete(allSuccess)
         }
 

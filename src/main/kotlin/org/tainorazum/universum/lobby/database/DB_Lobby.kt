@@ -18,7 +18,6 @@ import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
 
-
 object DB_Lobby : Table("lobby") {
 
     val spawnpoint_world = varchar("spawnpoint_world", 255)

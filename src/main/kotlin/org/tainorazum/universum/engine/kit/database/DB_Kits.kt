@@ -16,16 +16,19 @@ import org.tainorazum.universum.engine.kit.util.KitSerializer
 import org.tainorazum.universum.utility.text.ComponentSerializer
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import org.tainorazum.universum.utility.database.DatabaseUtil.mta
+import org.tainorazum.universum.utility.text.Colours
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
-object DB_Kits : Table("db_kits") {
+object DB_Kits : Table("kits") {
     private const val DEFAULT_OWNER_MARKER = "_"
 
     val id = varchar("id", 100)
     val name = text("name") // frontend visual component
     val ownerUuid = varchar("owner_uuid", 36).default(DEFAULT_OWNER_MARKER)
     val material = text("material").default(Material.PAPER.name)
+    val canCustomize = bool("can_customize").default(true)
+    val itemAccess = bool("item_access").default(false)
     val kitJson = text("kit_json")
     val schemaVersion = integer("schema_version").default(1)
     val createdAt = long("created_at")
@@ -87,7 +90,7 @@ object DB_Kits : Table("db_kits") {
             .firstOrNull()
     }
 
-    private fun storeKit(id: String, name: Component?, ownerUuid: UUID?, snapshot: KitSnapshot, material: Material?): Boolean {
+    private fun storeKit(id: String, name: Component?, ownerUuid: UUID?, snapshot: KitSnapshot, material: Material?, canCustomize: Boolean? = true, itemAccess: Boolean? = false): Boolean {
         val json = KitSerializer.inventoryToJson(
             snapshot.contents,
             snapshot.armor,
@@ -110,6 +113,8 @@ object DB_Kits : Table("db_kits") {
             it[DB_Kits.ownerUuid] = ownerValue
             it[DB_Kits.kitJson] = json
             it[DB_Kits.material] = finalMaterial
+            it[DB_Kits.canCustomize] = canCustomize ?: true
+            it[DB_Kits.itemAccess] = itemAccess ?: false
             it[DB_Kits.schemaVersion] = 1
             it[DB_Kits.createdAt] = System.currentTimeMillis()
         }
@@ -130,10 +135,10 @@ object DB_Kits : Table("db_kits") {
     /**
      * @Usage Save default kit as server Administrator.
      */
-    fun saveDefaultKitFromPlayer(id: String, player: Player, name: Component? = null, material: Material? = null): CompletableFuture<Boolean> {
+    fun saveDefaultKitFromPlayer(id: String, player: Player, name: Component? = null, material: Material? = null, canCustomize: Boolean? = true, itemAccess: Boolean? = false): CompletableFuture<Boolean> {
         return snapshotPlayerInventory(player).thenCompose { snapshot ->
             dba {
-                storeKit(id, name, null, snapshot, material)
+                storeKit(id, name, null, snapshot, material, canCustomize, itemAccess)
             }
         }
     }
@@ -146,7 +151,9 @@ object DB_Kits : Table("db_kits") {
 
             Kit(
                 id = row[DB_Kits.id],
-                material = mat
+                material = mat,
+                canCustomize = row[DB_Kits.canCustomize],
+                itemAccess = row[DB_Kits.itemAccess],
             )
         }
     }
@@ -194,6 +201,32 @@ object DB_Kits : Table("db_kits") {
 
     fun resetAllKitsForPlayer(player: Player): CompletableFuture<Int> = resetAllKitsForPlayer(player.uniqueId)
 
+    /**
+     * @Usage Create a new default kit entry using only an identifier.
+     * Sets the visual display name to the ID in grey.
+     */
+    fun createKit(id: String): CompletableFuture<Boolean> {
+        val emptySnapshot = KitSnapshot(
+            contents = arrayOfNulls(41), // Standard modern Bukkit inventory size
+            armor = arrayOfNulls(4),
+            offhand = null
+        )
+
+        val nameComponent = Component.text(id, Colours.GREY)
+
+        return dba {
+            storeKit(
+                id = id,
+                name = nameComponent,
+                ownerUuid = null,
+                snapshot = emptySnapshot,
+                material = Material.PAPER,
+                canCustomize = true,
+                itemAccess = false
+            )
+        }
+    }
+
     fun getAllDefaultKits(): CompletableFuture<List<Kit>> {
         return dba {
             selectAll()
@@ -204,7 +237,9 @@ object DB_Kits : Table("db_kits") {
 
                     Kit(
                         id = row[DB_Kits.id],
-                        material = mat
+                        material = mat,
+                        canCustomize = row[DB_Kits.canCustomize],
+                        itemAccess = row[DB_Kits.itemAccess],
                     )
                 }
         }

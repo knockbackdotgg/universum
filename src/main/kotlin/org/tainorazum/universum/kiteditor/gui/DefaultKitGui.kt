@@ -61,7 +61,7 @@ object DefaultKitGui {
                             isCancelled = true
                             player.closeInventory()
 
-                            Universum.kitEditorManager.editKit(kit, null)
+                            Universum.kitEditorManager.editKit(kit, player, canCustomize = true, itemAccess = true, isDefault = true)
                         }
                     } else {
                         set(slotIndex, item(Material.BARRIER, Text.toSmallTextComponent("No Kit Available", Colours.DARK_GREY).norm(), emptyList())) {

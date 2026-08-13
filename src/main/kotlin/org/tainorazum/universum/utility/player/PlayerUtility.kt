@@ -342,9 +342,13 @@ object PlayerUtility {
         requireLobby: Boolean = false,
         crossinline action: () -> Unit
     ) {
-        if(Universum.server.type == ServerType.LOBBY && requireLobby) {
+        if(Universum.server.type == ServerType.LOBBY
+            && requireLobby
+            && !Universum.lobbyManager.isPlayerInLobby(actor.requirePlayer())
+        ) {
             val player = actor.requirePlayer()
             player.sendMessage(Messages.LOBBY_REQUIRED())
+            return
         }
         allowed(actor, permission).thenAccept { isAllowed ->
             if (isAllowed) action()
