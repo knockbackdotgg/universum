@@ -158,7 +158,7 @@ class Universum : JavaPlugin() {
                     logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
                 }
                 if(!DB_KitEditor.loadAndCacheBoundary()) {
-                    logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
+                    logger.warning("Failed to load kit editor world from database; kit editor won't work.")
                 }
             }
         }

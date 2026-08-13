@@ -90,19 +90,19 @@ class KitEditorManager {
 
             if (Universum.lobbyManager.isPlayerInLobby(player) && isEditor(player.uniqueId)) { // Player in Kit Editor
 
-                // Prevent item entity from spawning in the world
-                isCancelled = true
-
                 val kitEditor = getKitEditor(player)
                 if (kitEditor != null) {
 
                     if (kitEditor.itemAccess) {
-                        // Item dropped via hotbar/keybind -> delete item from player's hand
-                        player.inventory.setItemInMainHand(null)
+                        itemDrop.remove()
                         player.noSound()
+                    } else {
+                        // Block dropping entirely if they don't have itemAccess
+                        isCancelled = true
                     }
 
                 } else {
+                    isCancelled = true
                     player.sendMessage(Component.text("You are unable to do that. Please contact an admin. (Error: Kit Editor hl1)", Colours.RED))
                 }
             }

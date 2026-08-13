@@ -6,6 +6,7 @@ import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -43,6 +44,13 @@ object DB_KitEditor : Table("kiteditor") {
     private var cachedCenterLocation: Location? = null
     private var cachedSpawnLocation: Location? = null
 
+    private fun getExistingOrEmptySchematic(): ExposedBlob {
+        return DB_KitEditor.selectAll()
+            .limit(1)
+            .firstOrNull()
+            ?.get(map_schematic) ?: ExposedBlob(byteArrayOf())
+    }
+
     fun loadAndCacheBoundary(): Boolean {
         return try {
             var world: String? = null
@@ -61,6 +69,7 @@ object DB_KitEditor : Table("kiteditor") {
             if (world != null) {
                 synchronized(cacheLock) {
                     cachedKitEditorWorld = world
+                    getSpawnpointLocation()
                 }
                 true
             } else {
@@ -110,7 +119,6 @@ object DB_KitEditor : Table("kiteditor") {
             centerVector.z()
         )
 
-        // WorldEdit's SpongeSchematicWriter automatically handles GZIP compression internally
         val bytes = ByteArrayOutputStream().use { baos ->
             BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(baos).use { writer ->
                 writer.write(clipboard)
@@ -158,6 +166,7 @@ object DB_KitEditor : Table("kiteditor") {
             }
         }
     }
+
     fun getSchematicBytes(): CompletableFuture<ByteArray?> {
         return dba {
             transaction {
@@ -194,6 +203,8 @@ object DB_KitEditor : Table("kiteditor") {
                         it[spawnpoint_pitch] = location.pitch
                     }
                 } else {
+                    // Carry over the existing schematic blob if inserting a new row
+                    val existingBlob = getExistingOrEmptySchematic()
                     DB_KitEditor.insert {
                         it[spawnpoint_world] = worldName
                         it[spawnpoint_x] = location.x
@@ -204,6 +215,7 @@ object DB_KitEditor : Table("kiteditor") {
                         it[center_x] = location.x
                         it[center_y] = location.y
                         it[center_z] = location.z
+                        it[map_schematic] = existingBlob
                     }
                 }
                 synchronized(cacheLock) {
@@ -220,16 +232,19 @@ object DB_KitEditor : Table("kiteditor") {
         return dba {
             transaction {
                 val world = cachedKitEditorWorld
+
+                val columns = listOf(spawnpoint_world, spawnpoint_x, spawnpoint_y, spawnpoint_z, spawnpoint_yaw, spawnpoint_pitch)
+
                 val row = if (world != null) {
-                    DB_KitEditor.selectAll().where { DB_KitEditor.spawnpoint_world eq world }.limit(1).firstOrNull()
+                    DB_KitEditor.select(columns).where { DB_KitEditor.spawnpoint_world eq world }.limit(1).firstOrNull()
                 } else {
-                    DB_KitEditor.selectAll().limit(1).firstOrNull()
+                    DB_KitEditor.select(columns).limit(1).firstOrNull()
                 }
 
                 val worldName = row?.get(spawnpoint_world) ?: world ?: "world"
                 val bukkitWorld = Bukkit.getWorld(worldName) ?: Bukkit.getWorlds().first()
 
-                Location(
+                val loc = Location(
                     bukkitWorld,
                     row?.get(spawnpoint_x) ?: 0.0,
                     row?.get(spawnpoint_y) ?: 200.0,
@@ -237,6 +252,8 @@ object DB_KitEditor : Table("kiteditor") {
                     row?.get(spawnpoint_yaw) ?: 0f,
                     row?.get(spawnpoint_pitch) ?: 0f,
                 )
+                cachedSpawnLocation = loc
+                loc
             }
         }
     }
@@ -258,6 +275,8 @@ object DB_KitEditor : Table("kiteditor") {
                         it[center_z] = location.z
                     }
                 } else {
+                    // Carry over the existing schematic blob if inserting a new row
+                    val existingBlob = getExistingOrEmptySchematic()
                     DB_KitEditor.insert {
                         it[spawnpoint_world] = worldName
                         it[spawnpoint_x] = location.x
@@ -268,6 +287,7 @@ object DB_KitEditor : Table("kiteditor") {
                         it[center_x] = location.x
                         it[center_y] = location.y
                         it[center_z] = location.z
+                        it[map_schematic] = existingBlob
                     }
                 }
                 synchronized(cacheLock) {

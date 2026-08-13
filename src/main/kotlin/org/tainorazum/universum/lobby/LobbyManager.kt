@@ -227,10 +227,12 @@ class LobbyManager {
         event.player.gameMode = GameMode.SPECTATOR
 
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
-            Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                event.player.teleport(loc)
-                PlayerUtility.reset(event.player, GameMode.SURVIVAL)
-            })
+            val player = event.player
+            if (loc == null || !player.isOnline) return@thenAccept
+
+            PlayerUtility.reset(player, GameMode.SURVIVAL)
+
+            player.teleportAsync(loc)
         }
     }
 
@@ -255,10 +257,12 @@ class LobbyManager {
         event.deathMessage(null)
         try { event.drops.clear() } catch (_: Exception) {}
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
-            Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                PlayerUtility.reset(event.player, GameMode.SURVIVAL)
-                event.player.teleport(loc)
-            })
+            val player = event.player
+            if (loc == null || !player.isOnline) return@thenAccept
+
+            PlayerUtility.reset(player, GameMode.SURVIVAL)
+
+            player.teleportAsync(loc)
         }
         cancel(event)
     }

@@ -1,6 +1,7 @@
 package org.tainorazum.universum.kiteditor.editor
 
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum
@@ -11,8 +12,6 @@ import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.utility.player.PlayerIsolationUtility
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
-import java.util.UUID
-import java.util.concurrent.CompletableFuture
 
 class KitEditor(
     val player: Player,
@@ -27,40 +26,77 @@ class KitEditor(
     }
 
     fun enter() {
-        // kit editor: https://github.com/knockbackdotgg/universum/issues/21
-
         Universum.kitEditorManager.addEditor(player.uniqueId)
 
         DB_KitEditor.getSpawnpointLocation().thenAccept { loc ->
-            Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                PlayerIsolationUtility.isolatePlayer(player)
-                player.teleport(loc)
-                PlayerUtility.reset(player, GameMode.SURVIVAL)
+            val world = loc.world ?: return@thenAccept
 
-                kit.applyToPlayer(player)
-            })
+            // 1. Load chunk asynchronously FIRST (prevents main thread lock)
+            world.getChunkAtAsync(loc).thenAccept { chunk ->
+                Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                    if (!player.isOnline) return@Runnable
+
+                    // Keep chunk loaded briefly
+                    chunk.addPluginChunkTicket(Universum.instance)
+
+                    // 2. Perform async teleport
+                    player.teleportAsync(loc).thenAccept { success ->
+                        if (!success || !player.isOnline) {
+                            chunk.removePluginChunkTicket(Universum.instance)
+                            return@thenAccept
+                        }
+
+                        PlayerUtility.reset(player, GameMode.SURVIVAL)
+                        kit.applyToPlayer(player)
+
+                        // 3. Delay isolation by 2 ticks so terrain renders cleanly first
+                        Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
+                            if (player.isOnline) {
+                                PlayerIsolationUtility.isolatePlayer(player)
+                            }
+                            chunk.removePluginChunkTicket(Universum.instance)
+                        }, 2L)
+                    }
+                })
+            }
         }
-
     }
 
     fun leave() {
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
-            Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                player.teleport(loc)
-                PlayerUtility.reset(player, GameMode.SURVIVAL)
+            val world = loc.world ?: return@thenAccept
 
-                PlayerIsolationUtility.unisolatePlayer(player)
-                Universum.kitEditorManager.removeEditor(player.uniqueId)
+            world.getChunkAtAsync(loc).thenAccept { chunk ->
+                Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                    if (!player.isOnline) return@Runnable
 
-                clear()
-            })
+                    chunk.addPluginChunkTicket(Universum.instance)
+
+                    player.teleportAsync(loc).thenAccept { success ->
+                        if (!success || !player.isOnline) {
+                            chunk.removePluginChunkTicket(Universum.instance)
+                            return@thenAccept
+                        }
+
+                        PlayerUtility.reset(player, GameMode.SURVIVAL)
+                        PlayerIsolationUtility.unisolatePlayer(player)
+                        Universum.kitEditorManager.removeEditor(player.uniqueId)
+
+                        clear()
+
+                        Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
+                            chunk.removePluginChunkTicket(Universum.instance)
+                        }, 2L)
+                    }
+                })
+            }
         }
     }
 
     fun clear() = Universum.kitEditorManager.clearKitEditor(this)
 
     fun cancel(quit: Boolean = false) {
-        if(!quit) {
+        if (!quit) {
             leave()
         } else {
             PlayerIsolationUtility.unisolatePlayer(player)
@@ -73,13 +109,16 @@ class KitEditor(
         val ownerUUID = if (isDefault) null else player.uniqueId
 
         DB_Kits.saveKitFromPlayer(kit.id, player, ownerUUID).thenAccept { success ->
-            if (success) {
-                player.sendMessage(Component.text("Your kit has been saved!", Colours.GREEN))
-            } else {
-                player.sendMessage(Component.text("Error! Unable to save your kit. Please contact a staff member.", Colours.RED))
-            }
-            leave()
+            Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                if (player.isOnline) {
+                    if (success) {
+                        player.sendMessage(Component.text("Your kit has been saved!", Colours.GREEN))
+                    } else {
+                        player.sendMessage(Component.text("Error! Unable to save your kit. Please contact a staff member.", Colours.RED))
+                    }
+                }
+                leave()
+            })
         }
     }
-
 }
