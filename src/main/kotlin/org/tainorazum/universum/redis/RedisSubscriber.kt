@@ -6,11 +6,14 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 import org.bukkit.plugin.java.JavaPlugin
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.redis.listeners.friends.RM_FriendAccept
+import org.tainorazum.universum.redis.listeners.friends.RM_FriendRemove
 import org.tainorazum.universum.redis.listeners.friends.RM_FriendRequest
 import org.tainorazum.universum.redis.listeners.network.RM_ChatMessage
 import org.tainorazum.universum.redis.listeners.games.RM_GameRequest
 import org.tainorazum.universum.redis.listeners.network.RM_Nametag
 import org.tainorazum.universum.redis.listeners.network.RM_Online
+import org.tainorazum.universum.redis.listeners.network.RM_PrivateMessage
+import org.tainorazum.universum.redis.listeners.network.RM_ServerMessage
 import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerDisconnect
 import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerSwitch
 import java.util.concurrent.ConcurrentHashMap
@@ -90,10 +93,13 @@ object RedisSubscriber {
         // friends
         RM_FriendAccept()
         RM_FriendRequest()
+        RM_FriendRemove()
 
         // network
         RM_Online()
         RM_ChatMessage()
+        RM_ServerMessage()
+        RM_PrivateMessage()
         RM_Nametag()
 
         // velocity

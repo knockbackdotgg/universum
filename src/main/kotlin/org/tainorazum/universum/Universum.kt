@@ -14,14 +14,15 @@ import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.default.CosmeticsCommand
 import org.tainorazum.universum.command.default.CycleHoloCommand
+import org.tainorazum.universum.command.default.FriendsCommand
 import org.tainorazum.universum.command.default.KitEditorCommand
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
 import org.tainorazum.universum.command.universum.commands.UniversumCommandKitEditor
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
-import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.command.universum.commands.UniversumCommandOther
+import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.cosmetic.manager.CosmeticManager
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
@@ -31,8 +32,8 @@ import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.friends.manager.FriendsManager
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.kiteditor.editor.KitEditorManager
-import org.tainorazum.universum.lobby.manager.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.lobby.manager.LobbyManager
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.nametag.NametagManager
 import org.tainorazum.universum.placeholders.holo.HoloStatsPlaceholder
@@ -92,18 +93,7 @@ class Universum : JavaPlugin() {
         saveDefaultConfig()
         twilight(this)
 
-        val redisEnabled = config.getBoolean("redis.enabled", false)
-        if (redisEnabled) {
-            val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
-            if (RedisManager.init(uri)) {
-                RedisSubscriber.start(this)
-                NetworkPlayerManager.loadInitialPlayers()
-            } else {
-                logger.warning("Redis is enabled in config but failed to connect.")
-            }
-        }
-        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
-
+        // 1. Initialize Database
         try {
             dbm = DatabaseManager()
             dbm?.init()
@@ -114,22 +104,13 @@ class Universum : JavaPlugin() {
             return
         }
 
+        // 2. Initialize Services & Managers FIRST before Redis listeners
         val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
         if (provider != null) {
             luckperms = provider.provider
         }
 
-        val lamp = BukkitLamp.builder(this)
-            .parameterTypes { types ->
-                types.addParameterType(Duration::class.java) { input, _ ->
-                    val text = input.readString()
-                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
-                }
-            }
-            .build()
-
         updater = Updater()
-
         lobbyManager = LobbyManager()
         adbm = ArenaDatabaseManager()
         arenaManager = ArenaManager()
@@ -146,6 +127,29 @@ class Universum : JavaPlugin() {
         kitEditorManager = KitEditorManager()
         friendsManager = FriendsManager()
 
+        // 3. Initialize Redis NOW (after friendsManager exists)
+        val redisEnabled = config.getBoolean("redis.enabled", false)
+        if (redisEnabled) {
+            val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
+            if (RedisManager.init(uri)) {
+                RedisSubscriber.start(this)
+                NetworkPlayerManager.loadInitialPlayers()
+            } else {
+                logger.warning("Redis is enabled in config but failed to connect.")
+            }
+        }
+        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
+
+        // 4. Register Commands & Features
+        val lamp = BukkitLamp.builder(this)
+            .parameterTypes { types ->
+                types.addParameterType(Duration::class.java) { input, _ ->
+                    val text = input.readString()
+                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+            }
+            .build()
+
         NametagManager.init()
 
         delay(20) {
@@ -160,32 +164,28 @@ class Universum : JavaPlugin() {
                 if (!DB_Lobby.loadAndCacheBoundary()) {
                     logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
                 }
-                if(!DB_KitEditor.loadAndCacheBoundary()) {
+                if (!DB_KitEditor.loadAndCacheBoundary()) {
                     logger.warning("Failed to load kit editor world from database; kit editor won't work.")
                 }
             }
         }
 
-        // placeholders
-
         if (server.pluginManager.getPlugin("PlaceholderAPI") != null) {
             StatsPlaceholder().register()
             HoloStatsPlaceholder().register()
-
             logger.info("Successfully registered PlaceholderAPI expansions!")
         } else {
             logger.warning("PlaceholderAPI not found! Hologram & stat placeholders will not function.")
         }
 
-        // commands
-
-        // default
+        // default commands
         lamp.register(SettingsCommand())
         lamp.register(CycleHoloCommand())
         lamp.register(CosmeticsCommand())
         lamp.register(KitEditorCommand())
+        lamp.register(FriendsCommand())
 
-        // universum
+        // universum commands
         lamp.register(UniversumCommandGeneral())
         lamp.register(UniversumCommandOther())
         lamp.register(UniversumCommandLobby())
@@ -193,7 +193,7 @@ class Universum : JavaPlugin() {
         lamp.register(UniversumCommandServerList())
         lamp.register(UniversumCommandKitEditor())
 
-        // admin
+        // admin commands
         lamp.register(AdminCommandGeneral())
         lamp.register(AdminCommandWhitelist())
         lamp.register(AdminCommandBypass())
@@ -205,7 +205,6 @@ class Universum : JavaPlugin() {
                 if (success) {
                     server.setWhitelist(false)
                     serverManager.online()
-
                     update()
                 }
             }
@@ -213,10 +212,6 @@ class Universum : JavaPlugin() {
     }
 
     override fun onDisable() {
-        server.setWhitelist(true)
-
-        serverManager.offline()
-
         DB_Stats.shutdownAndFlush()
 
         RedisSubscriber.stop()

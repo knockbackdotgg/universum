@@ -30,7 +30,6 @@ object PlayerSettingGui {
         val pattern = listOf(
             "#########",
             "#SSSSSSS#",
-            "#########",
             "#SSSSSSS#",
             "#########",
             "B########"
@@ -53,7 +52,7 @@ object PlayerSettingGui {
         return CompletableFuture.allOf(*settingFutures.toTypedArray()).thenApply {
             val settingsMap = settingFutures.map { it.join() }.toMap()
 
-            gui(Text.toSmallTextComponent(titleText, Colours.GREY), 54) {
+            gui(Text.toSmallTextComponent(titleText, Colours.GREY), 45) {
                 pattern(*pattern.toTypedArray())
 
                 if (previous != null) {
