@@ -7,6 +7,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
@@ -324,6 +325,16 @@ object DB_Lobby : Table("lobby") {
     fun isLocationInLobby(location: Location): Boolean {
         val lobbyWorld = cachedLobbyWorld ?: return false
         return location.world?.name == lobbyWorld
+    }
+
+    fun clear(): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                val rowsDeleted = DB_Lobby.deleteAll()
+                invalidateCache()
+                rowsDeleted > 0
+            }
+        }
     }
 
     fun invalidateCache() {

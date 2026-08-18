@@ -14,7 +14,7 @@ object Prefix {
     fun ADMIN() = Component.text(Text.toSmallText("admin"), Colours.GREEN)
     fun MANAGE() = Component.text(Text.toSmallText("manage"), Colours.RED)
     fun FFA() = Component.text("FFA", Colours.LIGHT_BLUE)
-    fun FRIEND() = Component.text(Text.toSmallText("friend"), Colours.GOLD)
+    fun FRIEND() = Component.text(Text.toSmallText("friends"), Colours.GOLD)
     fun COSMETIC() = Component.text(Text.toSmallText("cosmetic"), Colours.GOLD)
     fun SETTINGS() = Component.text(Text.toSmallText("settings"), Colours.GOLD)
     fun PUNISHMENTS() = Component.text(Text.toSmallText("punishments"), Colours.GOLD)

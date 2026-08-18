@@ -5,11 +5,14 @@ import io.lettuce.core.pubsub.RedisPubSubListener
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 import org.bukkit.plugin.java.JavaPlugin
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.redis.listeners.RM_ChatMessage
-import org.tainorazum.universum.redis.listeners.RM_GameRequest
-import org.tainorazum.universum.redis.listeners.RM_Nametag
-import org.tainorazum.universum.redis.listeners.RM_Online
-import org.tainorazum.universum.redis.listeners.RM_VelocityEvents
+import org.tainorazum.universum.redis.listeners.friends.RM_FriendAccept
+import org.tainorazum.universum.redis.listeners.friends.RM_FriendRequest
+import org.tainorazum.universum.redis.listeners.network.RM_ChatMessage
+import org.tainorazum.universum.redis.listeners.games.RM_GameRequest
+import org.tainorazum.universum.redis.listeners.network.RM_Nametag
+import org.tainorazum.universum.redis.listeners.network.RM_Online
+import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerDisconnect
+import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerSwitch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
 
@@ -81,10 +84,20 @@ object RedisSubscriber {
     }
 
     private fun registerListeners() {
+        // games
         RM_GameRequest()
+
+        // friends
+        RM_FriendAccept()
+        RM_FriendRequest()
+
+        // network
         RM_Online()
         RM_ChatMessage()
         RM_Nametag()
-        RM_VelocityEvents()
+
+        // velocity
+        RM_VelocityPlayerDisconnect()
+        RM_VelocityPlayerSwitch()
     }
 }

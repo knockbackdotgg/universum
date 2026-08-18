@@ -14,6 +14,7 @@ enum class Permission(
     CMD_DEFAULT_KITEDITOR(listOf(Allowed.DEFAULT)),
     CMD_DEFAULT_INFO(listOf(Allowed.DEFAULT)),
     CMD_DEFAULT_CYCLEHOLO(listOf(Allowed.DEFAULT)),
+    CMD_DEFAULT_FRIENDS(listOf(Allowed.DEFAULT)),
 
     CMD_UNIVERSUM_GENERAL(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_DATABASE(listOf(Allowed.OWNER)),

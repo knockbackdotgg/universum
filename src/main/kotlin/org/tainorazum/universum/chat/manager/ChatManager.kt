@@ -95,9 +95,15 @@ class ChatManager {
     }
 
     fun sendMessage(chatMessage: ChatMessage) {
-        // Broadcast formatted Adventure Component to all local players
-        Bukkit.getOnlinePlayers().forEach { player ->
-            player.sendMessage(chatMessage.getComponent())
+        if(chatMessage.uuid == null) { // server sent message
+            // Broadcast formatted Adventure Component to all local players
+            Bukkit.getOnlinePlayers().forEach { player ->
+                player.sendMessage(chatMessage.getComponent())
+            }
+        } else {
+            Bukkit.getPlayer(chatMessage.uuid)?.sendMessage(chatMessage.getComponent())
         }
+
     }
+
 }

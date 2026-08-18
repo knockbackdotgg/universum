@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.tainorazum.universum.command.universum.UniversumCommandSub
+import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
@@ -60,6 +61,23 @@ class UniversumCommandLobby : UniversumCommandGeneral(UniversumCommandSub.LOBBY)
         if(location != null) {
             DB_Lobby.setSpawnLocation(location)
             player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Lobby spawn location has been set.", Colours.GREEN)))
+        }
+
+    }
+
+    @Subcommand("lobby clear")
+    fun clear(
+        actor: BukkitCommandActor
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_LOBBY) {
+
+        val player = actor.requirePlayer()
+
+        DB_Lobby.clear().thenAccept { success ->
+            if(success) {
+                player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("All values in the kit editor's database have been successfully cleared.", Colours.RED)))
+            } else {
+                player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Failed to clear the values in the kit editor's database. (Either already empty or error.)", Colours.RED)))
+            }
         }
 
     }

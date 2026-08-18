@@ -64,4 +64,21 @@ class UniversumCommandKitEditor : UniversumCommandGeneral(UniversumCommandSub.KI
 
     }
 
+    @Subcommand("kitEditor clear")
+    fun clear(
+        actor: BukkitCommandActor
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_KITEDITOR) {
+
+        val player = actor.requirePlayer()
+
+        DB_KitEditor.clear().thenAccept { success ->
+            if(success) {
+                player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("All values in the kit editor's database have been successfully cleared.", Colours.RED)))
+            } else {
+                player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Failed to clear the values in the kit editor's database. (Either already empty or error.)", Colours.RED)))
+            }
+        }
+
+    }
+
 }

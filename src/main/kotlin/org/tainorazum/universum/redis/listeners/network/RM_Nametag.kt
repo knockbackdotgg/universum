@@ -1,7 +1,8 @@
-package org.tainorazum.universum.redis.listeners
+package org.tainorazum.universum.redis.listeners.network
 
 import org.tainorazum.universum.network.nametag.NametagManager
 import org.tainorazum.universum.redis.RedisSubscriber
+import org.tainorazum.universum.redis.listeners.RM_Channel
 
 class RM_Nametag : RM_Channel("nametag") {
 

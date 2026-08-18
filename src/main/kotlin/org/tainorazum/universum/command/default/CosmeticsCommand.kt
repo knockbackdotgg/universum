@@ -1,5 +1,6 @@
 package org.tainorazum.universum.command.default
 
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
 import revxrsal.commands.annotation.Command

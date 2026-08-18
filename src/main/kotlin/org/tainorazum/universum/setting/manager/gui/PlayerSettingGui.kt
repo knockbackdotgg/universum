@@ -5,13 +5,15 @@ import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.setting.DB_PlayerSettings
-import org.tainorazum.universum.setting.PlayerSetting
+import org.tainorazum.universum.setting.database.DB_PlayerSettings
+import org.tainorazum.universum.setting.manager.PlayerSetting
 import org.tainorazum.universum.utility.gui.GuiUtility.item
 import org.tainorazum.universum.utility.other.open
+import org.tainorazum.universum.utility.player.PlayerUtility.sound
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
 import org.tainorazum.universum.utility.text.norm
@@ -81,6 +83,7 @@ object PlayerSettingGui {
                                 if (success) {
                                     // Ensure UI reopen happens safely on Bukkit Main Thread
                                     Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                                        player.sound(Sound.UI_BUTTON_CLICK, 0.7f, 1.0f)
                                         openGUI(player, previous)
                                     })
                                 }
@@ -114,9 +117,9 @@ object PlayerSettingGui {
 
         setting.options.forEach { option ->
             if (option.equals(currentValue, ignoreCase = true)) {
-                loreList.add(Component.text("▶ $option", Colours.GREEN).norm())
+                loreList.add(Component.text("▶ ${option.replaceFirstChar { it.uppercase() }}", Colours.GREEN).norm())
             } else {
-                loreList.add(Component.text("  $option", Colours.GREY).norm())
+                loreList.add(Component.text("  ${option.replaceFirstChar { it.uppercase() }}", Colours.GREY).norm())
             }
         }
 

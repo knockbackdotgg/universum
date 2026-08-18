@@ -8,12 +8,14 @@ import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.tainorazum.universum.database.other.longBlob
+import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
@@ -326,6 +328,16 @@ object DB_KitEditor : Table("kiteditor") {
     fun isLocationInKitEditor(location: Location): Boolean {
         val kitEditorWorld = cachedKitEditorWorld ?: return false
         return location.world?.name == kitEditorWorld
+    }
+
+    fun clear(): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                val rowsDeleted = DB_KitEditor.deleteAll()
+                DB_Lobby.invalidateCache()
+                rowsDeleted > 0
+            }
+        }
     }
 
     fun invalidateCache() {

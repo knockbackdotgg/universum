@@ -28,9 +28,10 @@ import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.friends.manager.FriendsManager
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.kiteditor.editor.KitEditorManager
-import org.tainorazum.universum.lobby.LobbyManager
+import org.tainorazum.universum.lobby.manager.LobbyManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.nametag.NametagManager
@@ -79,6 +80,7 @@ class Universum : JavaPlugin() {
         lateinit var cosmeticManager: CosmeticManager private set
         lateinit var playerSettingManager: PlayerSettingManager private set
         lateinit var kitEditorManager: KitEditorManager private set
+        lateinit var friendsManager: FriendsManager private set
         lateinit var updater: Updater private set
 
         // lobby servers
@@ -142,6 +144,7 @@ class Universum : JavaPlugin() {
         chatManager = ChatManager()
         playerSettingManager = PlayerSettingManager()
         kitEditorManager = KitEditorManager()
+        friendsManager = FriendsManager()
 
         NametagManager.init()
 

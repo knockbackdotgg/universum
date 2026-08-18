@@ -22,7 +22,7 @@ import org.tainorazum.universum.punishment.database.DB_Punishments
 import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
-import org.tainorazum.universum.setting.DB_PlayerSettings
+import org.tainorazum.universum.setting.database.DB_PlayerSettings
 
 class DatabaseManager {
 
