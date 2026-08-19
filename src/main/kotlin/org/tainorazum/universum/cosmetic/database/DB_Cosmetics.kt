@@ -1,8 +1,10 @@
 package org.tainorazum.universum.cosmetic.database
 
 import org.bukkit.Material
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -34,14 +36,14 @@ object DB_Cosmetics : Table("cosmetics") {
     val price = integer("price")
     val cosmetic = blob("cosmetic")
 
-    override val primaryKey = PrimaryKey(id, type, name)
+    override val primaryKey = PrimaryKey(id)
 
-    // Cache: Maps Pair(CosmeticType, Name) -> CompletableFuture<CosmeticEntry?>
+    init {
+        // Essential for upsert(type, name) to work properly in SQL/Exposed
+        uniqueIndex("uk_type_name", type, name)
+    }
+
     private val cache = ConcurrentHashMap<Pair<CosmeticType, String>, CompletableFuture<CosmeticEntry?>>()
-
-    // =========================================================================
-    // Cache Management & Lifecycle
-    // =========================================================================
 
     fun invalidate(type: CosmeticType, name: String) {
         cache.remove(type to name)
@@ -70,10 +72,6 @@ object DB_Cosmetics : Table("cosmetics") {
         }
     }
 
-    // =========================================================================
-    // Retrieval Methods
-    // =========================================================================
-
     fun getCosmeticEntry(type: CosmeticType, name: String): CompletableFuture<CosmeticEntry?> {
         val key = type to name
 
@@ -94,9 +92,6 @@ object DB_Cosmetics : Table("cosmetics") {
         return getCosmeticEntry(type, name).thenApply { it?.data }
     }
 
-    /**
-     * Fetches all cosmetics matching a given CosmeticType.
-     */
     fun getCosmeticsByType(type: CosmeticType): CompletableFuture<List<CosmeticEntry>> {
         return dba {
             transaction {
@@ -134,9 +129,31 @@ object DB_Cosmetics : Table("cosmetics") {
         }
     }
 
-    // =========================================================================
-    // Mutator Methods
-    // =========================================================================
+    fun updateData(type: CosmeticType, name: String, newData: CosmeticData?): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                val serializedBytes = newData?.let { CosmeticSerializer.serialize(it) } ?: ByteArray(0)
+
+                DB_Cosmetics.update({ (DB_Cosmetics.type eq type) and (DB_Cosmetics.name eq name) }) {
+                    it[cosmetic] = ExposedBlob(serializedBytes)
+                } > 0
+            }
+        }.thenApply { success ->
+            if (success) invalidate(type, name)
+            success
+        }
+    }
+
+    fun deleteCosmetic(type: CosmeticType, name: String): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                DB_Cosmetics.deleteWhere { (DB_Cosmetics.type eq type) and (DB_Cosmetics.name eq name) } > 0
+            }
+        }.thenApply { success ->
+            if (success) invalidate(type, name)
+            success
+        }
+    }
 
     /**
      * Upserts an entire CosmeticEntry into the database and updates RAM cache.
@@ -146,7 +163,7 @@ object DB_Cosmetics : Table("cosmetics") {
             transaction {
                 val serializedBytes = entry.data?.let { CosmeticSerializer.serialize(it) } ?: ByteArray(0)
 
-                DB_Cosmetics.upsert(DB_Cosmetics.type, DB_Cosmetics.name) {
+                DB_Cosmetics.upsert {
                     it[DB_Cosmetics.type] = entry.type
                     it[DB_Cosmetics.name] = entry.name
                     it[DB_Cosmetics.material] = entry.material
@@ -164,9 +181,6 @@ object DB_Cosmetics : Table("cosmetics") {
         }
     }
 
-    /**
-     * Adjusts only the price of a cosmetic.
-     */
     fun updatePrice(type: CosmeticType, name: String, newPrice: Int): CompletableFuture<Boolean> {
         return dba {
             transaction {
@@ -180,9 +194,6 @@ object DB_Cosmetics : Table("cosmetics") {
         }
     }
 
-    /**
-     * Adjusts only the description of a cosmetic.
-     */
     fun updateDescription(type: CosmeticType, name: String, newDescription: String?): CompletableFuture<Boolean> {
         return dba {
             transaction {
@@ -196,9 +207,6 @@ object DB_Cosmetics : Table("cosmetics") {
         }
     }
 
-    /**
-     * Adjusts only the material icon of a cosmetic.
-     */
     fun updateMaterial(type: CosmeticType, name: String, newMaterial: Material): CompletableFuture<Boolean> {
         return dba {
             transaction {

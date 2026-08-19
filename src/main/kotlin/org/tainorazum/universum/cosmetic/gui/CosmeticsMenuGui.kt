@@ -3,18 +3,13 @@ package org.tainorazum.universum.cosmetic.gui
 import gg.flyte.twilight.gui.GUI
 import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
-import org.tainorazum.universum.Universum
 import org.tainorazum.universum.cosmetic.util.CosmeticType
-import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.utility.gui.GuiUtility.item
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
-import org.tainorazum.universum.utility.text.norm
-import java.util.concurrent.CompletableFuture
 
 object CosmeticsMenuGui {
 
@@ -49,7 +44,7 @@ object CosmeticsMenuGui {
                 Material.NAME_TAG, Component.text("Chat Tags", Colours.YELLOW), "See all chat tags."
             )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.CHATTAG, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.CHAT_TAG, 1, this@gui)
             }
 
             set(
@@ -57,7 +52,7 @@ object CosmeticsMenuGui {
                     Material.RED_DYE, Component.text("Chat Color", Colours.YELLOW), "See all chat colors."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.CHATCOLOR, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.CHAT_COLOR, 1, this@gui)
             }
 
             set(
@@ -65,7 +60,7 @@ object CosmeticsMenuGui {
                     Material.COOKED_CHICKEN, Component.text("Pets", Colours.YELLOW), "See all pets. Only applies in lobby."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.PET, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.PET, 1, this@gui)
             }
 
             set(
@@ -73,7 +68,7 @@ object CosmeticsMenuGui {
                     Material.BLAZE_POWDER, Component.text("Trails", Colours.YELLOW), "See all trails. Only applies in lobby."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.TRAIL, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.TRAIL, 1, this@gui)
             }
 
             set(
@@ -81,7 +76,7 @@ object CosmeticsMenuGui {
                     Material.NETHER_STAR, Component.text("Glows", Colours.YELLOW), "See all glows. Only applies in lobby."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.GLOW, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.GLOW, 1, this@gui)
             }
 
             set(
@@ -89,7 +84,7 @@ object CosmeticsMenuGui {
                     Material.COPPER_HELMET, Component.text("Auras", Colours.YELLOW), "See all auras. Only applies in lobby."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.AURA, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.AURA, 1, this@gui)
             }
 
             set(
@@ -97,7 +92,7 @@ object CosmeticsMenuGui {
                     Material.WILD_ARMOR_TRIM_SMITHING_TEMPLATE, Component.text("Armor Trims", Colours.YELLOW), "See all armor trims. Applies to all your armor in games."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.ARMOR_TRIMS, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.ARMOR_TRIMS, 1, this@gui)
             }
 
             set(
@@ -105,7 +100,7 @@ object CosmeticsMenuGui {
                     Material.IRON_INGOT, Component.text("Armor Trim Colors", Colours.YELLOW), "See all armor trim colors. Applies to all your armor in games."
                 )) {
                 isCancelled = true
-                CosmeticsGui.openGUI(player, CosmeticType.ARMOR_TRIM_COLOR, 1, previous)
+                CosmeticsGui.openGUI(player, CosmeticType.ARMOR_TRIM_COLOR, 1, this@gui)
             }
 
             // navigation

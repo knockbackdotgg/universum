@@ -9,30 +9,42 @@ import org.tainorazum.universum.utility.text.norm
 
 object GuiUtility {
 
-    fun item(material: Material, name: Component, lore: String): ItemStack {
-        return ItemStack(material).apply {
-            editMeta { meta ->
-                meta.displayName(name.norm())
-                meta.lore(
-                    listOf(
-                        Component.text(lore, Colours.GREY).norm(),
-                        Component.empty().norm()
-                    )
-                )
-            }
-        }
+    // Make lore non-nullable String so null resolves to List<Component>?
+    fun item(
+        material: Material,
+        name: Component? = null,
+        lore: String,
+        showFlags: Boolean = false,
+        enchanted: Boolean = false
+    ): ItemStack {
+        val loreComponents = listOf(
+            Component.text(lore, Colours.GREY).norm(),
+            Component.empty().norm()
+        )
+        return item(material, name, loreComponents, showFlags, enchanted)
     }
 
-    fun item(material: Material, name: Component, lore: List<Component>, showFlags: Boolean = false): ItemStack {
+    // Main method handling nullable List<Component>
+    fun item(
+        material: Material,
+        name: Component? = null,
+        lore: List<Component>? = null,
+        showFlags: Boolean = false,
+        enchanted: Boolean = false
+    ): ItemStack {
         return ItemStack(material).apply {
             editMeta { meta ->
-                meta.displayName(name.norm())
+                meta.displayName(name?.norm())
                 meta.lore(lore)
-                if(!showFlags) {
+
+                if (enchanted) {
+                    meta.setEnchantmentGlintOverride(true)
+                }
+
+                if (!showFlags) {
                     meta.addItemFlags(*ItemFlag.entries.toTypedArray())
                 }
             }
         }
     }
-
 }

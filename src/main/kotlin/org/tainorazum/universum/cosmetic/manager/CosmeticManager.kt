@@ -11,7 +11,7 @@ class CosmeticManager {
 
     /**
      * Retrieves the active cosmetic payload/object for a player.
-     * - [CosmeticType.CHATTAG] -> Returns formatted [Component] bracketed with dark grey: `[Tag]`
+     * - [CosmeticType.CHAT_TAG] -> Returns formatted [Component] bracketed with dark grey: `[Tag]`
      * - [CosmeticType.PET] -> Returns [CosmeticData.Pet]
      * - [CosmeticType.ARMOR_TRIMS], [CosmeticType.ARMOR_TRIM_COLOR] -> Returns [org.bukkit.Material]
      * - [CosmeticType.TRAIL], [CosmeticType.AURA] -> Returns their respective [CosmeticData] objects

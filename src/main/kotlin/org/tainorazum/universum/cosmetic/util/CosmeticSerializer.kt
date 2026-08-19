@@ -2,6 +2,7 @@ package org.tainorazum.universum.cosmetic.util
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
@@ -17,10 +18,11 @@ object CosmeticSerializer {
 
         when (data) {
             is CosmeticData.ChatTag -> {
-                json.addProperty("component", miniMessage.serialize(data.component))
+                json.addProperty("text", data.text)
+                json.addProperty("color", data.color.asHexString())
             }
             is CosmeticData.ChatColor -> {
-                json.addProperty("color", data.color.toString())
+                json.addProperty("color", data.color.asHexString())
             }
             is CosmeticData.Pet -> {
                 json.addProperty("entityType", data.entityType.name)
@@ -35,14 +37,14 @@ object CosmeticSerializer {
             }
             is CosmeticData.Trail -> {
                 json.addProperty("name", data.name)
-                json.addProperty("color", data.color.toString())
+                json.addProperty("color", data.color.asHexString())
             }
             is CosmeticData.Aura -> {
                 json.addProperty("name", data.name)
-                json.addProperty("color", data.color.toString())
+                json.addProperty("color", data.color.asHexString())
             }
             is CosmeticData.Glow -> {
-                json.addProperty("color", data.color.toString())
+                json.addProperty("color", data.color.asHexString())
             }
         }
 
@@ -59,13 +61,13 @@ object CosmeticSerializer {
         val json = gson.fromJson(jsonString, JsonObject::class.java) ?: return null
 
         return when (type) {
-            CosmeticType.CHATTAG -> {
-                val compString = json.get("component").asString
-                CosmeticData.ChatTag(miniMessage.deserialize(compString))
+            CosmeticType.CHAT_TAG -> {
+                val text = json.get("text").asString
+                val color = parseColor(json.get("color")?.asString)
+                CosmeticData.ChatTag(text, color)
             }
-            CosmeticType.CHATCOLOR -> {
-                val colorName = json.get("color")?.asString
-                val color = Colours.fromName(colorName) ?: Colours.WHITE
+            CosmeticType.CHAT_COLOR -> {
+                val color = parseColor(json.get("color")?.asString)
                 CosmeticData.ChatColor(color)
             }
             CosmeticType.PET -> {
@@ -83,20 +85,28 @@ object CosmeticSerializer {
                 CosmeticData.ArmorTrimColor(mat)
             }
             CosmeticType.TRAIL -> {
-                val colorName = json.get("color")?.asString
-                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                val color = parseColor(json.get("color")?.asString)
                 CosmeticData.Trail(json.get("name").asString, color)
             }
             CosmeticType.AURA -> {
-                val colorName = json.get("color")?.asString
-                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                val color = parseColor(json.get("color")?.asString)
                 CosmeticData.Aura(json.get("name").asString, color)
             }
             CosmeticType.GLOW -> {
-                val colorName = json.get("color")?.asString
-                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                val color = parseColor(json.get("color")?.asString)
                 CosmeticData.Glow(color)
             }
         }
+    }
+
+    private fun parseColor(rawColor: String?): TextColor {
+        if (rawColor == null) return Colours.WHITE
+
+        // 1. Try parsing as a hex color (#RRGGBB)
+        val hexColor = TextColor.fromHexString(rawColor)
+        if (hexColor != null) return hexColor
+
+        // 2. Fall back to named color lookup or default to WHITE
+        return Colours.fromName(rawColor) ?: Colours.WHITE
     }
 }

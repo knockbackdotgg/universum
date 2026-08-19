@@ -7,7 +7,9 @@ enum class AdminCommandSub {
     GENERAL,
     WHITELIST,
     PUNISHMENTS,
-    BYPASS
+    BYPASS,
+    COSMETICS,
+    COINS
 
     ;
 

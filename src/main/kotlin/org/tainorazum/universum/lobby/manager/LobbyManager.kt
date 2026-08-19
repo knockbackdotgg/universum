@@ -88,6 +88,7 @@ import org.bukkit.event.world.WorldLoadEvent
 import org.bukkit.event.world.WorldSaveEvent
 import org.bukkit.event.world.WorldUnloadEvent
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.coins.database.DB_Coins
 import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.lobby.npc.NpcBouncer
@@ -275,6 +276,8 @@ class LobbyManager {
 
         PlayerIsolationUtility.handleNewPlayerJoin(event.player)
 
+        Universum.coinsManager.loadPlayer(event.player.uniqueId)
+
         //event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
         NetworkPlayerManager.broadcastJoin(event.player.name)
         event.player.gameMode = GameMode.SPECTATOR
@@ -300,6 +303,8 @@ class LobbyManager {
         HologramPageManager.clearPlayer(event.player.uniqueId)
 
         DB_PlayerSettings.invalidateCache(event.player.uniqueId) // change after network player leave update
+
+        Universum.coinsManager.unloadPlayer(event.player.uniqueId)
     }
 
     fun PLAYER_KICK_EVENT(event: PlayerKickEvent) {

@@ -102,7 +102,7 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
                     when (data) {
                         is CosmeticData.ChatTag -> {
                             Component.text("[", Colours.DARK_GREY)
-                                .append(data.component)
+                                .append(Component.text(data.text, data.color))
                                 .append(Component.text("] ", Colours.DARK_GREY))
                         }
                         is CosmeticData.ChatColor -> data.color

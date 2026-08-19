@@ -2,6 +2,7 @@ package org.tainorazum.universum.chat.manager
 
 import com.google.gson.Gson
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
@@ -14,6 +15,7 @@ import org.tainorazum.universum.utility.other.toHumanReadable
 import org.tainorazum.universum.utility.permissions.LuckpermsUtil
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.ColorCodeParser
+import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
 import java.util.UUID
@@ -31,9 +33,11 @@ class ChatManager {
         val nameFuture = PlayerUtility.getName(uuid)
         val mutedFuture = Universum.punishmentManager.isMuted(uuid)
         val chatFilterFuture = Universum.chatFilterManager.filter(uuid, rawMessage)
-        val tagFuture = Universum.cosmeticManager.get(uuid, CosmeticType.CHATTAG)
 
-        CompletableFuture.allOf(rankFuture, nameFuture, mutedFuture, chatFilterFuture, tagFuture).thenAccept {
+        val tagFuture = Universum.cosmeticManager.get(uuid, CosmeticType.CHAT_TAG)
+        val chatColorFuture = Universum.cosmeticManager.get(uuid, CosmeticType.CHAT_COLOR)
+
+        CompletableFuture.allOf(rankFuture, nameFuture, mutedFuture, chatFilterFuture, tagFuture, chatColorFuture).thenAccept {
             try {
                 var rank = rankFuture.get()
                 val name = nameFuture.get() ?: run {
@@ -43,6 +47,7 @@ class ChatManager {
                 val muted = mutedFuture.get()
                 val chatFilter = chatFilterFuture.get()
                 val tag = tagFuture.get() as? Component ?: Component.empty()
+                val chatColor = chatColorFuture.get() as? TextColor ?: Colours.GREY
 
                 if (muted != null) {
                     val msg = Messages.MUTED_MSG()
@@ -74,7 +79,7 @@ class ChatManager {
 
                 val finalComponent = baseComponent
                     .replace("%rank%", rank)
-                    .replace("%message%", rawMessage)
+                    .replace("%message%", Component.text(rawMessage, chatColor))
                     .replace("%name%", name)
                     .replace("%tag%", tag)
 

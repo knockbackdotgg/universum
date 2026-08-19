@@ -18,6 +18,9 @@ repositories {
 
     // fancy npcs
     maven("https://repo.fancyinnovations.com/releases")
+
+    // anvil gui utility
+    maven("https://repo.codemc.io/repository/maven-public/")
 }
 
 dependencies {
@@ -64,6 +67,9 @@ dependencies {
 
     // fancy npcs
     compileOnly("de.oliver:FancyNpcs:2.9.2")
+
+    // anvil gui utility
+    implementation("net.wesjd:anvilgui:1.10.0-SNAPSHOT")
 }
 
 kotlin {

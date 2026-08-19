@@ -6,8 +6,8 @@ import org.bukkit.Material
 import org.bukkit.entity.EntityType
 
 enum class CosmeticType {
-    CHATTAG,
-    CHATCOLOR,
+    CHAT_TAG,
+    CHAT_COLOR,
     PET,
     TRAIL,
     AURA,
@@ -17,7 +17,7 @@ enum class CosmeticType {
 }
 
 sealed class CosmeticData {
-    data class ChatTag(val component: Component): CosmeticData()
+    data class ChatTag(val text: String, val color: TextColor): CosmeticData()
 
     data class ChatColor(val color: TextColor): CosmeticData()
 

@@ -9,6 +9,8 @@ import org.tainorazum.universum.chat.manager.ChatFilterManager
 import org.tainorazum.universum.chat.manager.ChatManager
 import org.tainorazum.universum.coins.CoinsManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
+import org.tainorazum.universum.command.admin.commands.AdminCommandCoins
+import org.tainorazum.universum.command.admin.commands.AdminCommandCosmetics
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandKits
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
@@ -54,6 +56,7 @@ import org.tainorazum.universum.server.setting.ServerSetting
 import org.tainorazum.universum.server.update.Updater
 import org.tainorazum.universum.server.visual.VisualServerManager
 import org.tainorazum.universum.setting.manager.PlayerSettingManager
+import org.tainorazum.universum.utility.gui.AnvilInput
 import org.tainorazum.universum.utility.other.parseDuration
 import org.tainorazum.universum.whitelist.WhitelistManager
 import revxrsal.commands.bukkit.BukkitLamp
@@ -134,6 +137,8 @@ class Universum : JavaPlugin() {
         friendsManager = FriendsManager()
         coinsManager = CoinsManager()
 
+        AnvilInput.init(this)
+
         // 3. Initialize Redis NOW (after friendsManager exists)
         val redisEnabled = config.getBoolean("redis.enabled", false)
         if (redisEnabled) {
@@ -206,6 +211,8 @@ class Universum : JavaPlugin() {
         lamp.register(AdminCommandBypass())
         lamp.register(AdminCommandPunishments())
         lamp.register(AdminCommandKits())
+        lamp.register(AdminCommandCosmetics())
+        lamp.register(AdminCommandCoins())
 
         delay(40) {
             open().thenAccept { success ->

@@ -11,18 +11,19 @@ import org.tainorazum.universum.Universum
 import org.tainorazum.universum.cosmetic.database.CosmeticEntry
 import org.tainorazum.universum.cosmetic.database.DB_Cosmetics
 import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
+import org.tainorazum.universum.cosmetic.util.CosmeticData
 import org.tainorazum.universum.cosmetic.util.CosmeticType
 import org.tainorazum.universum.utility.gui.GuiUtility.item
 import org.tainorazum.universum.utility.other.open
+import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
 import org.tainorazum.universum.utility.text.norm
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import kotlin.math.ceil
 
 object CosmeticsGui {
-
-    private val OWNED_MATERIAL = Material.CHEST
 
     private val PATTERN = listOf(
         "WWWWWWWWW",
@@ -104,7 +105,7 @@ object CosmeticsGui {
                         val isOwned = ownedSet.contains(cosmeticEntry.name)
                         val isEnabled = enabledName == cosmeticEntry.name
 
-                        set(slotIndex, createCosmeticItem(cosmeticEntry, isOwned, isEnabled)) {
+                        set(slotIndex, createCosmeticItem(playerUuid, cosmeticEntry, isOwned, isEnabled)) {
                             isCancelled = true
 
                             if (isOwned) {
@@ -115,6 +116,12 @@ object CosmeticsGui {
                                 }
                                 action.thenAccept { openGUI(player, cosmeticType, currentPage, previous) }
                             } else {
+                                if (!Universum.coinsManager.hasCoins(player.uniqueId, cosmeticEntry.price)) {
+                                    player.sendMessage(Component.text("You do not have enough coins to buy this!", Colours.RED).norm())
+                                    player.noSound()
+                                    return@set
+                                }
+
                                 openConfirmGui(player, cosmeticEntry, cosmeticType, currentPage, previous)
                             }
                         }
@@ -132,32 +139,66 @@ object CosmeticsGui {
         }
     }
 
-    private fun createCosmeticItem(entry: CosmeticEntry, isOwned: Boolean, isEnabled: Boolean): ItemStack {
+    private fun createCosmeticItem(uuid: UUID, entry: CosmeticEntry, isOwned: Boolean, isEnabled: Boolean): ItemStack {
         val loreList = mutableListOf<Component>()
 
+        // 1. Description
         if (!entry.description.isNullOrBlank()) {
-            loreList.add(Component.text(entry.description, Colours.GREY).norm())
+            loreList.add(Component.text(entry.description, Colours.DARK_GREY).norm())
+            loreList.add(Component.empty())
+        }
+
+        // 2. Cosmetic Preview (Runs for both Owned and Unowned)
+        var hasPreview = false
+        when (val data = entry.data) {
+            is CosmeticData.ChatTag -> {
+                val previewComponent = Component.text("Preview: ", Colours.GREY)
+                    .append(Component.text("[", Colours.DARK_GREY))
+                    .append(Component.text(data.text, data.color))
+                    .append(Component.text("]", Colours.DARK_GREY))
+                    .norm()
+
+                loreList.add(previewComponent)
+                hasPreview = true
+            }
+            is CosmeticData.ChatColor -> {
+                val previewComponent = Component.text("Preview: ", Colours.GREY)
+                    .append(Component.text("Hello!", data.color))
+                    .norm()
+
+                loreList.add(previewComponent)
+                hasPreview = true
+            }
+            else -> {}
+        }
+
+        // Add spacing after preview if a preview was rendered
+        if (hasPreview) {
             loreList.add(Component.empty())
         }
 
         val material: Material
         val titleColor: TextColor
 
+        // 3. Ownership / Pricing Status
         if (isOwned) {
-            material = OWNED_MATERIAL
+            material = entry.material
             if (isEnabled) {
                 titleColor = Colours.GREEN
-                loreList.add(Component.text("Status » ENABLED", Colours.GREEN).norm())
+                loreList.add(Component.text("Status: ", Colours.GREY).append(Component.text("Equipped", Colours.GREEN)).norm())
+                loreList.add(Component.empty())
                 loreList.add(Component.text("Click to disable this cosmetic.", Colours.DARK_GREY).norm())
             } else {
                 titleColor = Colours.YELLOW
-                loreList.add(Component.text("Status » OWNED", Colours.YELLOW).norm())
+                loreList.add(Component.text("Status: ", Colours.GREY).append(Component.text("Unequipped", Colours.YELLOW)).norm())
+                loreList.add(Component.empty())
                 loreList.add(Component.text("Click to enable this cosmetic.", Colours.DARK_GREY).norm())
             }
         } else {
             material = Material.BARRIER
             titleColor = Colours.RED
-            loreList.add(Component.text("Price » ${entry.price} Coins", Colours.GOLD).norm())
+            loreList.add(Component.text("Price: ", Colours.GREY).append(Component.text("${entry.price} Coins", Colours.GOLD)).norm())
+            loreList.add(Component.text("You have: ", Colours.GREY).append(Component.text("${Universum.coinsManager.getCoins(uuid)} Coins", Colours.GOLD)).norm())
             loreList.add(Component.empty())
             loreList.add(Component.text("Click to purchase!", Colours.GREEN).norm())
         }
@@ -167,7 +208,8 @@ object CosmeticsGui {
         return item(
             material,
             Component.text(displayName, titleColor).norm(),
-            loreList
+            loreList,
+            enchanted = isEnabled
         )
     }
 
@@ -184,8 +226,8 @@ object CosmeticsGui {
 
             val confirmLore = listOf(
                 Component.empty(),
-                Component.text("Item: ${entry.name}", Colours.GREY).norm(),
-                Component.text("Price: ${entry.price} Coins", Colours.GOLD).norm(),
+                Component.text("Item: ${entry.name.lowercase().replaceFirstChar { it.uppercase() }}", Colours.GREY).norm(),
+                Component.text("Price: ", Colours.GREY).append(Component.text("${entry.price} Coins", Colours.GOLD)).norm(),
                 Component.empty(),
                 Component.text("Click to confirm purchase.", Colours.GREEN).norm()
             )
