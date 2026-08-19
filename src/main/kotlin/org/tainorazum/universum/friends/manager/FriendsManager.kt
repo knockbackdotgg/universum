@@ -82,6 +82,51 @@ class FriendsManager {
                     return@thenAccept
                 }
 
+                // 1. MUTUAL REQUEST CHECK (Auto-Accept)
+                // Check if target has ALREADY sent an active request to this requester
+                val incomingRequestFromTarget = getValidRequest(targetUUID = requesterUUID, requesterUUID = targetUUID)
+                if (incomingRequestFromTarget != null) {
+                    removePendingRequest(targetUUID = requesterUUID, requesterUUID = targetUUID)
+
+                    DB_Friends.addFriend(requesterUUID, targetUUID).thenAccept { success ->
+                        if (success) {
+                            val payload = FriendAcceptPayload(
+                                acceptorUUID = requesterUUID,
+                                acceptorName = requester.name,
+                                requesterUUID = targetUUID,
+                                requesterName = targetName
+                            )
+
+                            RedisManager.publish(FRIEND_ACCEPT_CHANNEL, gson.toJson(payload))
+                            requester.sendMessage(Messages.FRIEND_REQUEST_ACCEPTED().replace("<player>", targetName))
+                        } else {
+                            requester.sendMessage(Messages.FRIEND_FAILED())
+                        }
+                    }
+                    return@thenAccept
+                }
+
+                // 2. DUPLICATE SPAM CHECK
+                // Check if requester ALREADY has an active, unexpired request sent to target
+                val existingOutgoingRequest = getValidRequest(targetUUID = targetUUID, requesterUUID = requesterUUID)
+                if (existingOutgoingRequest != null) {
+                    val elapsed = System.currentTimeMillis() - existingOutgoingRequest.timestamp
+                    val remainingMillis = maxOf(0L, requestExpiryMillis - elapsed)
+
+                    val totalSeconds = remainingMillis / 1000
+                    val minutes = totalSeconds / 60
+                    val seconds = totalSeconds % 60
+                    val formattedExpiry = "${minutes}m${seconds}s"
+
+                    requester.sendMessage(
+                        Messages.PENDING_FRIEND_REQUEST_EXISTS()
+                            .replace("<player>", targetName)
+                            .replace("<expiry>", formattedExpiry)
+                    )
+                    requester.noSound()
+                    return@thenAccept
+                }
+
                 Universum.playerSettingManager.getSetting(targetUUID, PlayerSetting.ALLOW_FRIEND_REQUESTS)
                     .thenAccept { settingValue ->
                         if (settingValue.equals("no", ignoreCase = true)) {
@@ -151,7 +196,7 @@ class FriendsManager {
      */
     fun removeFriend(remover: Player, targetName: String) {
         if (remover.name.equals(targetName, ignoreCase = true)) {
-            remover.sendMessage(Messages.FRIEND_FAILED())
+            remover.sendMessage(Messages.FRIEND_REMOVE_SELF())
             remover.noSound()
             return
         }
@@ -214,15 +259,15 @@ class FriendsManager {
 
     fun friendActivityJoinNotify(uuid: UUID) {
         DB_Friends.getFriends(uuid).thenAccept { friends ->
-
             friends.forEach { friend ->
                 Universum.playerSettingManager.getSetting(friend, PlayerSetting.SEE_FRIEND_ACTIVITY).thenAccept { value ->
-                    if(value.lowercase() == "yes") {
-
+                    if (value.lowercase() == "yes") {
                         PlayerUtility.getName(uuid).thenAccept { name ->
-                            if(name != null) {
-                                NetworkPlayerManager.attemptServerMessage(uuid,
-                                    Prefix.FRIEND().append(Prefix.ARROW3()).append(Messages.FRIEND_JOINED().replace("<player>", name)))
+                            if (name != null) {
+                                NetworkPlayerManager.attemptServerMessage(
+                                    friend,
+                                    Prefix.FRIEND().append(Prefix.ARROW3()).append(Messages.FRIEND_JOINED().replace("<player>", name))
+                                )
                             }
                         }
                     }
@@ -233,15 +278,15 @@ class FriendsManager {
 
     fun friendActivityLeaveNotify(uuid: UUID) {
         DB_Friends.getFriends(uuid).thenAccept { friends ->
-
             friends.forEach { friend ->
                 Universum.playerSettingManager.getSetting(friend, PlayerSetting.SEE_FRIEND_ACTIVITY).thenAccept { value ->
-                    if(value.lowercase() == "yes") {
-
+                    if (value.lowercase() == "yes") {
                         PlayerUtility.getName(uuid).thenAccept { name ->
-                            if(name != null) {
-                                NetworkPlayerManager.attemptServerMessage(uuid,
-                                    Prefix.FRIEND().append(Prefix.ARROW3()).append(Messages.FRIEND_LEFT().replace("<player>", name)))
+                            if (name != null) {
+                                NetworkPlayerManager.attemptServerMessage(
+                                    friend,
+                                    Prefix.FRIEND().append(Prefix.ARROW3()).append(Messages.FRIEND_LEFT().replace("<player>", name))
+                                )
                             }
                         }
                     }
@@ -249,5 +294,4 @@ class FriendsManager {
             }
         }
     }
-
 }

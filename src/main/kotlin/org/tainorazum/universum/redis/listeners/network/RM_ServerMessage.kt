@@ -1,8 +1,6 @@
 package org.tainorazum.universum.redis.listeners.network
 
 import com.google.gson.Gson
-import org.tainorazum.universum.Universum
-import org.tainorazum.universum.chat.ChatMessage
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.manager.ServerMessage
 import org.tainorazum.universum.redis.RedisSubscriber
@@ -16,9 +14,7 @@ class RM_ServerMessage : RM_Channel("server_message") {
         RedisSubscriber.register(channel) { message ->
             try {
                 val serverMessage = gson.fromJson(message, ServerMessage::class.java)
-
                 NetworkPlayerManager.serverMessage(serverMessage)
-
             } catch (e: Exception) {
                 e.printStackTrace()
             }

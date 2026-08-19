@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 data class ServerMessage(
     val uuid: UUID, // target
-    val component: Component,
+    val jsonComponent: String
 )
 
 object NetworkPlayerManager {
@@ -139,13 +139,16 @@ object NetworkPlayerManager {
     }
 
     fun attemptServerMessage(uuid: UUID, message: Component) {
-        val serverMessage = ServerMessage(uuid, message)
+        val jsonString = GsonComponentSerializer.gson().serialize(message)
+        val serverMessage = ServerMessage(uuid, jsonString)
 
         RedisManager.publish("server_message", gson.toJson(serverMessage))
     }
 
     fun serverMessage(serverMessage: ServerMessage) {
-        Bukkit.getPlayer(serverMessage.uuid)?.sendMessage(serverMessage.component)
+        val player = Bukkit.getPlayer(serverMessage.uuid) ?: return
+        val component = GsonComponentSerializer.gson().deserialize(serverMessage.jsonComponent)
+        player.sendMessage(component)
     }
 
 }

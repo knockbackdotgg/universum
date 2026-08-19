@@ -14,8 +14,10 @@ import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.default.CosmeticsCommand
 import org.tainorazum.universum.command.default.CycleHoloCommand
+import org.tainorazum.universum.command.default.Friends
 import org.tainorazum.universum.command.default.FriendsCommand
 import org.tainorazum.universum.command.default.KitEditorCommand
+import org.tainorazum.universum.command.default.NetworkPlayers
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
@@ -29,6 +31,7 @@ import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.friends.database.DB_Friends
 import org.tainorazum.universum.friends.manager.FriendsManager
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.kiteditor.editor.KitEditorManager
@@ -53,6 +56,7 @@ import org.tainorazum.universum.setting.manager.PlayerSettingManager
 import org.tainorazum.universum.utility.other.parseDuration
 import org.tainorazum.universum.whitelist.WhitelistManager
 import revxrsal.commands.bukkit.BukkitLamp
+import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.logging.Level
@@ -141,11 +145,39 @@ class Universum : JavaPlugin() {
         DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
 
         // 4. Register Commands & Features
+        /*val lamp = BukkitLamp.builder(this)
+            .parameterTypes { types ->
+                types.addParameterType(Duration::class.java) { input, _ ->
+                    val text = input.readString()
+                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+            }
+            .build()*/
+
         val lamp = BukkitLamp.builder(this)
             .parameterTypes { types ->
                 types.addParameterType(Duration::class.java) { input, _ ->
                     val text = input.readString()
                     parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+            }
+            .suggestionProviders { providers ->
+                // Tab-complete all online network players
+                providers.addProvider(NetworkPlayers::class.java) { _ ->
+                    NetworkPlayerManager.onlinePlayers.values.map { it.name }
+                }
+
+                // Tab-complete the executing player's added friends
+                providers.addProvider(Friends::class.java) { context ->
+                    val player = (context.actor() as? BukkitCommandActor)?.requirePlayer()
+                        ?: return@addProvider emptyList()
+
+                    runCatching {
+                        DB_Friends.getFriends(player.uniqueId).get(200, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    }.getOrNull()?.mapNotNull { friendUUID ->
+                        Bukkit.getPlayer(friendUUID)?.name
+                            ?: NetworkPlayerManager.onlinePlayers[friendUUID]?.name
+                    } ?: emptyList()
                 }
             }
             .build()

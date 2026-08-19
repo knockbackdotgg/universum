@@ -7,12 +7,21 @@ import org.tainorazum.universum.friends.database.DB_Friends
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
-import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
 import revxrsal.commands.annotation.Command
 import revxrsal.commands.annotation.CommandPlaceholder
 import revxrsal.commands.annotation.Subcommand
+import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
+import java.util.concurrent.CompletableFuture
+
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Friends
+
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class NetworkPlayers
 
 @Command("friends", "friend", "f")
 class FriendsCommand {
@@ -28,7 +37,7 @@ class FriendsCommand {
                 .appendNewline()
                 .append(Component.text("/friends list (See all your friends.)", Colours.GREY))
                 .appendNewline()
-                .append(Component.text("/friends request|add <name> (Friend request a player.)", Colours.GREY))
+                .append(Component.text("/friends request <name> (Friend request a player.)", Colours.GREY))
                 .appendNewline()
                 .append(Component.text("/friends remove <name> (Friend remove a player.)", Colours.GREY))
                 .appendNewline()
@@ -48,23 +57,41 @@ class FriendsCommand {
                 return@thenAccept
             }
 
-            val friendNames = friendUUIDs.map { uuid ->
-                val onlineName = Bukkit.getPlayer(uuid)?.name
-                val status = if (NetworkPlayerManager.isNetworkOnline(uuid)) "&a[Online]" else "&c[Offline]"
-                "&7- ${onlineName ?: uuid.toString().take(8)} $status"
+            val lineFutures = friendUUIDs.map { uuid ->
+                PlayerUtility.getName(uuid).thenApply { fetchedName ->
+                    val name = fetchedName ?: "N/A (Fmk1) Please contact an admin."
+                    val isOnline = NetworkPlayerManager.isNetworkOnline(uuid)
+
+                    val statusComponent = if (isOnline) {
+                        Component.text("[Online]", Colours.GREEN)
+                    } else {
+                        Component.text("[Offline]", Colours.RED)
+                    }
+
+                    Component.text("- ", Colours.GREY)
+                        .append(Component.text(name, Colours.GREY))
+                        .appendSpace()
+                        .append(statusComponent)
+                }
             }
 
-            val header = Component.text("Your Friends (${friendUUIDs.size}):", Colours.ORANGE)
-            val listMessage = friendNames.joinToString("\n")
+            CompletableFuture.allOf(*lineFutures.toTypedArray()).thenAccept {
+                val friendLines = lineFutures.map { it.join() }
 
-            player.sendMessage(header.appendNewline().append(Component.text(listMessage)))
+                var fullMessage = Component.text("Your Friends (${friendUUIDs.size}):", Colours.ORANGE)
+                friendLines.forEach { line ->
+                    fullMessage = fullMessage.appendNewline().append(line)
+                }
+
+                player.sendMessage(fullMessage)
+            }
         }
     }
 
-    @Subcommand("request", "add")
+    @Subcommand("request")
     fun request(
         actor: BukkitCommandActor,
-        targetName: String
+        @NetworkPlayers targetName: String
     ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_FRIENDS) {
         val player = actor.requirePlayer()
         Universum.friendsManager.attemptRequestFriend(player, targetName)
@@ -73,7 +100,7 @@ class FriendsCommand {
     @Subcommand("remove")
     fun remove(
         actor: BukkitCommandActor,
-        targetName: String
+        @Friends targetName: String
     ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_FRIENDS) {
         val player = actor.requirePlayer()
         Universum.friendsManager.removeFriend(player, targetName)
@@ -82,9 +109,10 @@ class FriendsCommand {
     @Subcommand("accept")
     fun accept(
         actor: BukkitCommandActor,
-        targetName: String
+        @NetworkPlayers targetName: String
     ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_FRIENDS) {
         val player = actor.requirePlayer()
         Universum.friendsManager.acceptFriend(player, targetName)
     }
+
 }
