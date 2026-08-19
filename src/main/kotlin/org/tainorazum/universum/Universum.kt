@@ -9,30 +9,40 @@ import org.tainorazum.universum.chat.manager.ChatFilterManager
 import org.tainorazum.universum.chat.manager.ChatManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
+import org.tainorazum.universum.command.admin.commands.AdminCommandKits
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.default.CosmeticsCommand
 import org.tainorazum.universum.command.default.CycleHoloCommand
+import org.tainorazum.universum.command.default.Friends
+import org.tainorazum.universum.command.default.FriendsCommand
+import org.tainorazum.universum.command.default.KitEditorCommand
+import org.tainorazum.universum.command.default.NetworkPlayers
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
+import org.tainorazum.universum.command.universum.commands.UniversumCommandKitEditor
 import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
-import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.command.universum.commands.UniversumCommandOther
+import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.cosmetic.manager.CosmeticManager
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.game.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
-import org.tainorazum.universum.lobby.LobbyManager
+import org.tainorazum.universum.friends.database.DB_Friends
+import org.tainorazum.universum.friends.manager.FriendsManager
+import org.tainorazum.universum.kiteditor.database.DB_KitEditor
+import org.tainorazum.universum.kiteditor.editor.KitEditorManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.lobby.manager.LobbyManager
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.network.nametag.NametagManager
 import org.tainorazum.universum.placeholders.holo.HoloStatsPlaceholder
 import org.tainorazum.universum.placeholders.stats.StatsPlaceholder
 import org.tainorazum.universum.player.PlayerManager
-import org.tainorazum.universum.punishment.PunishmentManager
+import org.tainorazum.universum.punishment.manager.PunishmentManager
 import org.tainorazum.universum.redis.RedisManager
 import org.tainorazum.universum.redis.RedisSubscriber
 import org.tainorazum.universum.server.server.Server
@@ -46,6 +56,7 @@ import org.tainorazum.universum.setting.manager.PlayerSettingManager
 import org.tainorazum.universum.utility.other.parseDuration
 import org.tainorazum.universum.whitelist.WhitelistManager
 import revxrsal.commands.bukkit.BukkitLamp
+import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.logging.Level
@@ -73,6 +84,8 @@ class Universum : JavaPlugin() {
         lateinit var chatFilterManager: ChatFilterManager private set
         lateinit var cosmeticManager: CosmeticManager private set
         lateinit var playerSettingManager: PlayerSettingManager private set
+        lateinit var kitEditorManager: KitEditorManager private set
+        lateinit var friendsManager: FriendsManager private set
         lateinit var updater: Updater private set
 
         // lobby servers
@@ -84,18 +97,7 @@ class Universum : JavaPlugin() {
         saveDefaultConfig()
         twilight(this)
 
-        val redisEnabled = config.getBoolean("redis.enabled", false)
-        if (redisEnabled) {
-            val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
-            if (RedisManager.init(uri)) {
-                RedisSubscriber.start(this)
-                NetworkPlayerManager.loadInitialPlayers()
-            } else {
-                logger.warning("Redis is enabled in config but failed to connect.")
-            }
-        }
-        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
-
+        // 1. Initialize Database
         try {
             dbm = DatabaseManager()
             dbm?.init()
@@ -106,22 +108,13 @@ class Universum : JavaPlugin() {
             return
         }
 
+        // 2. Initialize Services & Managers FIRST before Redis listeners
         val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
         if (provider != null) {
             luckperms = provider.provider
         }
 
-        val lamp = BukkitLamp.builder(this)
-            .parameterTypes { types ->
-                types.addParameterType(Duration::class.java) { input, _ ->
-                    val text = input.readString()
-                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
-                }
-            }
-            .build()
-
         updater = Updater()
-
         lobbyManager = LobbyManager()
         adbm = ArenaDatabaseManager()
         arenaManager = ArenaManager()
@@ -135,6 +128,59 @@ class Universum : JavaPlugin() {
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
         playerSettingManager = PlayerSettingManager()
+        kitEditorManager = KitEditorManager()
+        friendsManager = FriendsManager()
+
+        // 3. Initialize Redis NOW (after friendsManager exists)
+        val redisEnabled = config.getBoolean("redis.enabled", false)
+        if (redisEnabled) {
+            val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
+            if (RedisManager.init(uri)) {
+                RedisSubscriber.start(this)
+                NetworkPlayerManager.loadInitialPlayers()
+            } else {
+                logger.warning("Redis is enabled in config but failed to connect.")
+            }
+        }
+        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
+
+        // 4. Register Commands & Features
+        /*val lamp = BukkitLamp.builder(this)
+            .parameterTypes { types ->
+                types.addParameterType(Duration::class.java) { input, _ ->
+                    val text = input.readString()
+                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+            }
+            .build()*/
+
+        val lamp = BukkitLamp.builder(this)
+            .parameterTypes { types ->
+                types.addParameterType(Duration::class.java) { input, _ ->
+                    val text = input.readString()
+                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+            }
+            .suggestionProviders { providers ->
+                // Tab-complete all online network players
+                providers.addProvider(NetworkPlayers::class.java) { _ ->
+                    NetworkPlayerManager.onlinePlayers.values.map { it.name }
+                }
+
+                // Tab-complete the executing player's added friends
+                providers.addProvider(Friends::class.java) { context ->
+                    val player = (context.actor() as? BukkitCommandActor)?.requirePlayer()
+                        ?: return@addProvider emptyList()
+
+                    runCatching {
+                        DB_Friends.getFriends(player.uniqueId).get(200, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    }.getOrNull()?.mapNotNull { friendUUID ->
+                        Bukkit.getPlayer(friendUUID)?.name
+                            ?: NetworkPlayerManager.onlinePlayers[friendUUID]?.name
+                    } ?: emptyList()
+                }
+            }
+            .build()
 
         NametagManager.init()
 
@@ -150,46 +196,47 @@ class Universum : JavaPlugin() {
                 if (!DB_Lobby.loadAndCacheBoundary()) {
                     logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
                 }
+                if (!DB_KitEditor.loadAndCacheBoundary()) {
+                    logger.warning("Failed to load kit editor world from database; kit editor won't work.")
+                }
             }
         }
-
-        // placeholders
 
         if (server.pluginManager.getPlugin("PlaceholderAPI") != null) {
             StatsPlaceholder().register()
             HoloStatsPlaceholder().register()
-
             logger.info("Successfully registered PlaceholderAPI expansions!")
         } else {
             logger.warning("PlaceholderAPI not found! Hologram & stat placeholders will not function.")
         }
 
-        // commands
-
-        // default
+        // default commands
         lamp.register(SettingsCommand())
         lamp.register(CycleHoloCommand())
         lamp.register(CosmeticsCommand())
+        lamp.register(KitEditorCommand())
+        lamp.register(FriendsCommand())
 
-        // universum
+        // universum commands
         lamp.register(UniversumCommandGeneral())
         lamp.register(UniversumCommandOther())
         lamp.register(UniversumCommandLobby())
         lamp.register(UniversumCommandDatabase())
         lamp.register(UniversumCommandServerList())
+        lamp.register(UniversumCommandKitEditor())
 
-        // admin
+        // admin commands
         lamp.register(AdminCommandGeneral())
         lamp.register(AdminCommandWhitelist())
         lamp.register(AdminCommandBypass())
         lamp.register(AdminCommandPunishments())
+        lamp.register(AdminCommandKits())
 
         delay(40) {
             open().thenAccept { success ->
                 if (success) {
                     server.setWhitelist(false)
                     serverManager.online()
-
                     update()
                 }
             }
@@ -197,10 +244,6 @@ class Universum : JavaPlugin() {
     }
 
     override fun onDisable() {
-        server.setWhitelist(true)
-
-        serverManager.offline()
-
         DB_Stats.shutdownAndFlush()
 
         RedisSubscriber.stop()
@@ -224,9 +267,10 @@ class Universum : JavaPlugin() {
 
         val arenaManagerFuture = arenaManager.success
         val lobbyManagerFuture = lobbyManager.success
+        val kitEditorManagerFuture = kitEditorManager.success
 
-        CompletableFuture.allOf(arenaManagerFuture, lobbyManagerFuture).thenAccept {
-            val allSuccess = arenaManagerFuture.join() && lobbyManagerFuture.join()
+        CompletableFuture.allOf(arenaManagerFuture, lobbyManagerFuture, kitEditorManagerFuture).thenAccept {
+            val allSuccess = arenaManagerFuture.join() && lobbyManagerFuture.join() && kitEditorManagerFuture.join()
             future.complete(allSuccess)
         }
 

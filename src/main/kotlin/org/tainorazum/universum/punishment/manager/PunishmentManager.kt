@@ -1,7 +1,7 @@
-package org.tainorazum.universum.punishment
+package org.tainorazum.universum.punishment.manager
 
+import org.tainorazum.universum.punishment.database.DB_Punishments
 import java.time.Duration
-import java.time.Instant
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.CompletableFuture

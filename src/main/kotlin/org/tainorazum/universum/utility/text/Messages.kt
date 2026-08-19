@@ -81,6 +81,7 @@ object Messages {
 
     // player
     fun NO_PERMISSION_COMMAND() = Component.text("You are not allowed to execute this command.", Colours.RED)
+    fun LOBBY_REQUIRED() = Component.text("You are only able to execute this command in the lobby.", Colours.YELLOW)
 
     // game: ffa
     fun FFA_DEATH_PERSONAL() = Component.text("You have been killed by <opponent>!", Colours.RED)
@@ -94,16 +95,25 @@ object Messages {
     fun DUEL_DISALLOW() = Component.text("You aren't allowed to join.", Colours.RED)
 
     // friends
-    fun ALREADY_FRIENDS() = Component.text("You are already friends with this player.", Colours.RED)
+    fun ALREADY_FRIENDS() = Component.text("You are already friends with this player.", Colours.YELLOW)
     fun ALREADY_FRIEND_REQUESTED() =
-        Component.text("You already friend requested this player, please wait for them to accept.", Colours.RED)
+        Component.text("You already friend requested this player.", Colours.RED)
 
-    fun DENY_FRIEND_REQUESTS() = Component.text("This player does not accept friend requests.", Colours.RED)
-    fun NOT_ONLINE_FRIEND_REQUEST() = Component.text("Player has to be online to send a friend request.", Colours.RED)
-    fun SENT_FRIEND_REQUEST() = Component.text("You sent that player a friend request!", Colours.GREEN)
-    fun FRIEND_REQUEST_RECEIVED() = Component.text(" <player> has sent you a friend request.", Colours.GREY)
+    fun DENY_FRIEND_REQUESTS() = Component.text("That player does not accept friend requests.", Colours.RED)
+    fun NOT_ONLINE_FRIEND_REQUEST() = Component.text("That player is not online right now.", Colours.RED)
+    fun SENT_FRIEND_REQUEST() = Component.text("You sent <player> a friend request!", Colours.GREEN)
+    fun FRIEND_REQUEST_RECEIVED() = Component.text("<player> has sent you a friend request. ", Colours.GREY).append(Text.toSmallTextComponent("click to accept", Colours.GREEN))
     fun FRIEND_REQUEST_ACCEPTED() = Component.text("You are now friends with <player>!", Colours.GREEN)
-    fun FRIEND_REQUEST_SELF() = Component.text("You can't friend request yourself.", Colours.RED)
+    fun FRIEND_REQUEST_SELF() = Component.text("You cannot friend request yourself.", Colours.RED)
+    fun FRIEND_FAILED() = Component.text("That player does not exist.", Colours.RED)
+    fun NO_FRIEND_REQUESTS() = Component.text("You have no active friend requests from <player>", Colours.RED)
+    fun FRIEND_REMOVED() = Component.text("You unfriended <player>.", Colours.GREY)
+    fun FRIEND_REMOVED_NOTIFY() = Component.text("<player> has unfriended you.", Colours.GREY)
+    fun NOT_FRIENDS() = Component.text("You and <player> are not friends.", Colours.RED)
+    fun FRIEND_JOINED() = Component.text("<player>", Colours.GREEN).append(Component.text(" joined the network.",Colours.GREY))
+    fun FRIEND_LEFT() = Component.text("<player>", Colours.GREEN).append(Component.text(" left the network.",Colours.GREY))
+    fun FRIEND_REMOVE_SELF() = Component.text("You cannot unfriend yourself.", Colours.RED)
+    fun PENDING_FRIEND_REQUEST_EXISTS() = Component.text("You already friend requested <player>. You may friend request them again in <time>", Colours.YELLOW)
 
 }
 

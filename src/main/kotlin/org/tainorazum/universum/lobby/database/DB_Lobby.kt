@@ -7,6 +7,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
@@ -17,7 +18,6 @@ import org.tainorazum.universum.database.other.mediumBlob
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
-
 
 object DB_Lobby : Table("lobby") {
 
@@ -45,6 +45,13 @@ object DB_Lobby : Table("lobby") {
     private var cachedCenterLocation: Location? = null
     private var cachedSpawnLocation: Location? = null
 
+    private fun getExistingOrEmptySchematic(): ExposedBlob {
+        return DB_Lobby.selectAll()
+            .limit(1)
+            .firstOrNull()
+            ?.get(map_schematic) ?: ExposedBlob(byteArrayOf())
+    }
+
     fun loadAndCacheBoundary(): Boolean {
         return try {
             var world: String? = null
@@ -63,6 +70,7 @@ object DB_Lobby : Table("lobby") {
             if (world != null) {
                 synchronized(cacheLock) {
                     cachedLobbyWorld = world
+                    getSpawnpointLocation()
                 }
                 true
             } else {
@@ -112,7 +120,6 @@ object DB_Lobby : Table("lobby") {
             centerVector.z()
         )
 
-        // WorldEdit's SpongeSchematicWriter automatically handles GZIP compression internally
         val bytes = ByteArrayOutputStream().use { baos ->
             BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(baos).use { writer ->
                 writer.write(clipboard)
@@ -160,6 +167,7 @@ object DB_Lobby : Table("lobby") {
             }
         }
     }
+
     fun getSchematicBytes(): CompletableFuture<ByteArray?> {
         return dba {
             transaction {
@@ -196,6 +204,7 @@ object DB_Lobby : Table("lobby") {
                         it[spawnpoint_pitch] = location.pitch
                     }
                 } else {
+                    val existingBlob = getExistingOrEmptySchematic()
                     DB_Lobby.insert {
                         it[spawnpoint_world] = worldName
                         it[spawnpoint_x] = location.x
@@ -206,6 +215,7 @@ object DB_Lobby : Table("lobby") {
                         it[center_x] = location.x
                         it[center_y] = location.y
                         it[center_z] = location.z
+                        it[map_schematic] = existingBlob
                     }
                 }
                 synchronized(cacheLock) {
@@ -222,16 +232,19 @@ object DB_Lobby : Table("lobby") {
         return dba {
             transaction {
                 val world = cachedLobbyWorld
+
+                val columns = listOf(spawnpoint_world, spawnpoint_x, spawnpoint_y, spawnpoint_z, spawnpoint_yaw, spawnpoint_pitch)
+
                 val row = if (world != null) {
-                    DB_Lobby.selectAll().where { DB_Lobby.spawnpoint_world eq world }.limit(1).firstOrNull()
+                    DB_Lobby.select(columns).where { DB_Lobby.spawnpoint_world eq world }.limit(1).firstOrNull()
                 } else {
-                    DB_Lobby.selectAll().limit(1).firstOrNull()
+                    DB_Lobby.select(columns).limit(1).firstOrNull()
                 }
 
                 val worldName = row?.get(spawnpoint_world) ?: world ?: "world"
                 val bukkitWorld = Bukkit.getWorld(worldName) ?: Bukkit.getWorlds().first()
 
-                Location(
+                val loc = Location(
                     bukkitWorld,
                     row?.get(spawnpoint_x) ?: 0.0,
                     row?.get(spawnpoint_y) ?: 200.0,
@@ -239,6 +252,8 @@ object DB_Lobby : Table("lobby") {
                     row?.get(spawnpoint_yaw) ?: 0f,
                     row?.get(spawnpoint_pitch) ?: 0f,
                 )
+                cachedSpawnLocation = loc
+                loc
             }
         }
     }
@@ -260,6 +275,7 @@ object DB_Lobby : Table("lobby") {
                         it[center_z] = location.z
                     }
                 } else {
+                    val existingBlob = getExistingOrEmptySchematic()
                     DB_Lobby.insert {
                         it[spawnpoint_world] = worldName
                         it[spawnpoint_x] = location.x
@@ -270,6 +286,7 @@ object DB_Lobby : Table("lobby") {
                         it[center_x] = location.x
                         it[center_y] = location.y
                         it[center_z] = location.z
+                        it[map_schematic] = existingBlob
                     }
                 }
                 synchronized(cacheLock) {
@@ -308,6 +325,16 @@ object DB_Lobby : Table("lobby") {
     fun isLocationInLobby(location: Location): Boolean {
         val lobbyWorld = cachedLobbyWorld ?: return false
         return location.world?.name == lobbyWorld
+    }
+
+    fun clear(): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                val rowsDeleted = DB_Lobby.deleteAll()
+                invalidateCache()
+                rowsDeleted > 0
+            }
+        }
     }
 
     fun invalidateCache() {

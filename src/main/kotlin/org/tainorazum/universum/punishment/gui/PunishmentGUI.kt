@@ -1,4 +1,4 @@
-package org.tainorazum.universum.punishment
+package org.tainorazum.universum.punishment.gui
 
 import gg.flyte.twilight.gui.GUI
 import gg.flyte.twilight.gui.gui
@@ -6,12 +6,17 @@ import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.tainorazum.universum.punishment.database.DB_Punishments
+import org.tainorazum.universum.punishment.manager.Punishment
+import org.tainorazum.universum.punishment.manager.PunishmentType
+import org.tainorazum.universum.utility.gui.GuiUtility.item
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.other.toHumanReadable
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
 import java.util.UUID
+import kotlin.math.ceil
 
 object PunishmentGUI {
 
@@ -61,30 +66,6 @@ object PunishmentGUI {
         )
     }
 
-    fun item(material: Material, name: Component, lore: String): ItemStack {
-        return ItemStack(material).apply {
-            editMeta { meta ->
-                meta.displayName(name)
-                meta.lore(
-                    listOf(
-                        Component.empty(),
-                        Component.text(lore, Colours.GREY),
-                        Component.empty()
-                    )
-                )
-            }
-        }
-    }
-
-    fun item(material: Material, name: Component, lore: List<Component>): ItemStack {
-        return ItemStack(material).apply {
-            editMeta { meta ->
-                meta.displayName(name)
-                meta.lore(lore)
-            }
-        }
-    }
-
     fun historyWithTargetInitial(player: Player, target: String, targetUUID: UUID): GUI {
         lateinit var punishmentGui: GUI
 
@@ -105,28 +86,55 @@ object PunishmentGUI {
             set('M', item(Material.ORANGE_DYE, Component.text("Mutes", Colours.ORANGE), "See all mutes.")) {
                 isCancelled = true
                 currentPageIndex[player.uniqueId] = 0
-                historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.MUTE).open(player)
+                historyWithTargetPunishments(
+                    punishmentGui,
+                    player,
+                    target,
+                    targetUUID,
+                    PunishmentType.MUTE
+                ).open(player)
             }
 
             set('K', item(Material.YELLOW_DYE, Component.text("Kicks", Colours.YELLOW), "See all kicks.")) {
                 isCancelled = true
                 currentPageIndex[player.uniqueId] = 0
-                historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.KICK).open(player)
+                historyWithTargetPunishments(
+                    punishmentGui,
+                    player,
+                    target,
+                    targetUUID,
+                    PunishmentType.KICK
+                ).open(player)
             }
 
             set('W', item(Material.PURPLE_DYE, Component.text("Warns", Colours.PURPLE), "See all warns.")) {
                 isCancelled = true
                 currentPageIndex[player.uniqueId] = 0
-                historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.WARN).open(player)
+                historyWithTargetPunishments(
+                    punishmentGui,
+                    player,
+                    target,
+                    targetUUID,
+                    PunishmentType.WARN
+                ).open(player)
             }
 
             set('N', item(Material.MAGENTA_DYE, Component.text("Notes", Colours.MAGENTA), "See all notes.")) {
                 isCancelled = true
                 currentPageIndex[player.uniqueId] = 0
-                historyWithTargetPunishments(punishmentGui, player, target, targetUUID, PunishmentType.NOTE).open(player)
+                historyWithTargetPunishments(
+                    punishmentGui,
+                    player,
+                    target,
+                    targetUUID,
+                    PunishmentType.NOTE
+                ).open(player)
             }
 
-            set('A', item(Material.WHITE_DYE, Component.text("All punishments", Colours.WHITE), "See all punishments.")) {
+            set(
+                'A',
+                item(Material.WHITE_DYE, Component.text("All punishments", Colours.WHITE), "See all punishments.")
+            ) {
                 isCancelled = true
                 currentPageIndex[player.uniqueId] = 0
                 historyWithTargetPunishments(punishmentGui, player, target, targetUUID, null).open(player)
@@ -166,7 +174,7 @@ object PunishmentGUI {
 
         // Pagination Calculations
         val pageSize = itemSlots.size
-        val totalPages = maxOf(1, kotlin.math.ceil(punishmentsList.size.toDouble() / pageSize).toInt())
+        val totalPages = maxOf(1, ceil(punishmentsList.size.toDouble() / pageSize).toInt())
 
         var page = currentPageIndex.getOrDefault(player.uniqueId, 0)
         if (page >= totalPages) page = 0 // Bounds safety reset
@@ -178,7 +186,14 @@ object PunishmentGUI {
         val punishmentGui = gui(Text.toSmallTextComponent(titleText, Colours.GREY), 54) {
             pattern(*pattern.toTypedArray())
 
-            set('B', item(Material.ARROW, Text.toSmallTextComponent("Go Back", Colours.RED), "Click to return to the previous menu.")) {
+            set(
+                'B',
+                item(
+                    Material.ARROW,
+                    Text.toSmallTextComponent("Go Back", Colours.RED),
+                    "Click to return to the previous menu."
+                )
+            ) {
                 isCancelled = true
                 previous.open(player)
             }

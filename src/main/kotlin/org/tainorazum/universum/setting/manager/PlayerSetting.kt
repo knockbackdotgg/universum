@@ -1,4 +1,4 @@
-package org.tainorazum.universum.setting
+package org.tainorazum.universum.setting.manager
 
 import org.bukkit.Material
 
@@ -22,6 +22,10 @@ enum class PlayerSetting(
 
     CHAT_MODE(
         listOf("global", "friends", "none"), "Whose messages you receive in chat.", Material.COMPASS
+    ),
+
+    SHOW_SIDEBAR(
+        listOf("yes", "no"), "Show the sidebar.", Material.OAK_SIGN
     ),
 
 }

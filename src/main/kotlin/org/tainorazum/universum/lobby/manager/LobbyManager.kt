@@ -1,11 +1,5 @@
-package org.tainorazum.universum.lobby
+package org.tainorazum.universum.lobby.manager
 
-import com.sk89q.worldedit.WorldEdit
-import com.sk89q.worldedit.bukkit.BukkitAdapter
-import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
-import com.sk89q.worldedit.function.operation.Operations
-import com.sk89q.worldedit.math.BlockVector3
-import com.sk89q.worldedit.session.ClipboardHolder
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -16,36 +10,97 @@ import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
-import org.bukkit.event.block.*
+import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockBurnEvent
+import org.bukkit.event.block.BlockEvent
+import org.bukkit.event.block.BlockFadeEvent
+import org.bukkit.event.block.BlockFormEvent
+import org.bukkit.event.block.BlockFromToEvent
+import org.bukkit.event.block.BlockGrowEvent
+import org.bukkit.event.block.BlockIgniteEvent
+import org.bukkit.event.block.BlockPhysicsEvent
+import org.bukkit.event.block.BlockPistonExtendEvent
+import org.bukkit.event.block.BlockPistonRetractEvent
+import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.block.BlockSpreadEvent
 import org.bukkit.event.enchantment.EnchantItemEvent
-import org.bukkit.event.entity.*
+import org.bukkit.event.entity.CreatureSpawnEvent
+import org.bukkit.event.entity.EntityCombustEvent
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.EntityDeathEvent
+import org.bukkit.event.entity.EntityEvent
+import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.entity.EntityInteractEvent
+import org.bukkit.event.entity.EntityPickupItemEvent
+import org.bukkit.event.entity.EntityTameEvent
+import org.bukkit.event.entity.EntityTargetEvent
+import org.bukkit.event.entity.FoodLevelChangeEvent
+import org.bukkit.event.entity.PlayerDeathEvent
+import org.bukkit.event.entity.ProjectileHitEvent
+import org.bukkit.event.entity.ProjectileLaunchEvent
 import org.bukkit.event.hanging.HangingBreakByEntityEvent
 import org.bukkit.event.hanging.HangingBreakEvent
 import org.bukkit.event.hanging.HangingPlaceEvent
-import org.bukkit.event.inventory.*
-import org.bukkit.event.player.*
+import org.bukkit.event.inventory.CraftItemEvent
+import org.bukkit.event.inventory.FurnaceBurnEvent
+import org.bukkit.event.inventory.FurnaceSmeltEvent
+import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.InventoryCloseEvent
+import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.event.inventory.InventoryOpenEvent
+import org.bukkit.event.inventory.PrepareItemCraftEvent
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent
+import org.bukkit.event.player.PlayerBedEnterEvent
+import org.bukkit.event.player.PlayerBedLeaveEvent
+import org.bukkit.event.player.PlayerCommandPreprocessEvent
+import org.bukkit.event.player.PlayerDropItemEvent
+import org.bukkit.event.player.PlayerEvent
+import org.bukkit.event.player.PlayerFishEvent
+import org.bukkit.event.player.PlayerInteractEntityEvent
+import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerItemConsumeEvent
+import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerKickEvent
+import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.PlayerRespawnEvent
+import org.bukkit.event.player.PlayerSwapHandItemsEvent
+import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.event.server.PluginDisableEvent
 import org.bukkit.event.server.PluginEnableEvent
 import org.bukkit.event.server.ServerListPingEvent
-import org.bukkit.event.vehicle.*
+import org.bukkit.event.vehicle.VehicleCreateEvent
+import org.bukkit.event.vehicle.VehicleDamageEvent
+import org.bukkit.event.vehicle.VehicleDestroyEvent
+import org.bukkit.event.vehicle.VehicleEnterEvent
+import org.bukkit.event.vehicle.VehicleExitEvent
+import org.bukkit.event.vehicle.VehicleMoveEvent
 import org.bukkit.event.weather.ThunderChangeEvent
 import org.bukkit.event.weather.WeatherChangeEvent
-import org.bukkit.event.world.*
+import org.bukkit.event.world.ChunkLoadEvent
+import org.bukkit.event.world.ChunkUnloadEvent
+import org.bukkit.event.world.PortalCreateEvent
+import org.bukkit.event.world.StructureGrowEvent
+import org.bukkit.event.world.WorldLoadEvent
+import org.bukkit.event.world.WorldSaveEvent
+import org.bukkit.event.world.WorldUnloadEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.lobby.npc.NpcBouncer
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
-import org.tainorazum.universum.setting.DB_PlayerSettings
+import org.tainorazum.universum.setting.database.DB_PlayerSettings
+import org.tainorazum.universum.utility.maps.SchematicUtil
 import org.tainorazum.universum.utility.other.formatDate
 import org.tainorazum.universum.utility.other.toHumanReadable
+import org.tainorazum.universum.utility.player.PlayerIsolationUtility
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
-import java.io.ByteArrayInputStream
 import java.util.concurrent.CompletableFuture
-import kotlin.use
 
 class LobbyManager {
 
@@ -96,60 +151,12 @@ class LobbyManager {
                 return@thenCompose CompletableFuture.completedFuture(false)
             }
 
-            pasteSchematicTo(schematicBytes, targetLocation, ignoreAir = false)
+            SchematicUtil.pasteSchematicTo(schematicBytes, targetLocation, ignoreAir = false)
         }.exceptionally { ex ->
             Universum.instance.logger.severe("Failed to paste lobby schematic: ${ex.cause?.message ?: ex.message}")
             ex.printStackTrace()
             false
         }
-    }
-
-    private fun pasteSchematicTo(
-        schematicBytes: ByteArray,
-        targetLocation: Location,
-        ignoreAir: Boolean = false
-    ): CompletableFuture<Boolean> {
-        val future = CompletableFuture<Boolean>()
-
-        val world = targetLocation.world ?: run {
-            future.completeExceptionally(IllegalArgumentException("Target location world cannot be null."))
-            return future
-        }
-
-        val worldRef = BukkitAdapter.adapt(world)
-
-        CompletableFuture.runAsync {
-            try {
-                ByteArrayInputStream(schematicBytes).use { inputStream ->
-                    BuiltInClipboardFormat.SPONGE_SCHEMATIC.getReader(inputStream).use { reader ->
-                        val clipboard = reader.read() ?: throw NullPointerException("Clipboard returned null")
-
-                        val region = clipboard.region
-                        val schemCenter = region.center
-                        val originToCenterOffset = schemCenter.subtract(clipboard.origin.toVector3())
-
-                        val bukkitTargetVector = BlockVector3.at(targetLocation.x, targetLocation.y, targetLocation.z)
-                        val adjustedPastePosition = bukkitTargetVector.subtract(originToCenterOffset.toBlockPoint())
-
-                        WorldEdit.getInstance().newEditSession(worldRef).use { editSession ->
-                            val operation = ClipboardHolder(clipboard)
-                                .createPaste(editSession)
-                                .to(adjustedPastePosition)
-                                .ignoreAirBlocks(ignoreAir)
-                                .copyEntities(false)
-                                .build()
-
-                            Operations.complete(operation)
-                        }
-                    }
-                }
-                future.complete(true)
-            } catch (e: Exception) {
-                future.completeExceptionally(e)
-            }
-        }
-
-        return future
     }
 
     // npcs
@@ -190,7 +197,7 @@ class LobbyManager {
                 Universum.instance.server.pluginManager.registerEvent(
                     eventClass,
                     listener,
-                    org.bukkit.event.EventPriority.HIGH,
+                    EventPriority.HIGH,
                     { _, event -> dispatchEvent(event) },
                     Universum.instance
                 )
@@ -266,20 +273,26 @@ class LobbyManager {
     fun PLAYER_JOIN_EVENT(event: PlayerJoinEvent) {
         enter(event.player)
 
+        PlayerIsolationUtility.handleNewPlayerJoin(event.player)
+
         //event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
         NetworkPlayerManager.broadcastJoin(event.player.name)
         event.player.gameMode = GameMode.SPECTATOR
 
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
-            Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                PlayerUtility.reset(event.player, GameMode.SURVIVAL)
-                event.player.teleport(loc)
-            })
+            val player = event.player
+            if (loc == null || !player.isOnline) return@thenAccept
+
+            PlayerUtility.reset(player, GameMode.SURVIVAL)
+
+            player.teleportAsync(loc)
         }
     }
 
     fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
         leave(event.player)
+
+        PlayerIsolationUtility.handlePlayerQuit(event.player)
 
         //event.quitMessage(Messages.LEAVE_MSG().replace("<name>", event.player.name))
         NetworkPlayerManager.broadcastLeave(event.player.name)
@@ -297,10 +310,12 @@ class LobbyManager {
         event.deathMessage(null)
         try { event.drops.clear() } catch (_: Exception) {}
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
-            Universum.instance.server.scheduler.runTask(Universum.instance, Runnable {
-                PlayerUtility.reset(event.player, GameMode.SURVIVAL)
-                event.player.teleport(loc)
-            })
+            val player = event.player
+            if (loc == null || !player.isOnline) return@thenAccept
+
+            PlayerUtility.reset(player, GameMode.SURVIVAL)
+
+            player.teleportAsync(loc)
         }
         cancel(event)
     }
@@ -398,8 +413,8 @@ class LobbyManager {
         }
     }
 
-    private fun isPlayerInLobby(player: Player) = players.contains(player)
-    private fun isLocationInLobby(location: Location) = DB_Lobby.isLocationInLobby(location)
+    fun isPlayerInLobby(player: Player) = players.contains(player)
+    fun isLocationInLobby(location: Location) = DB_Lobby.isLocationInLobby(location)
 
     private fun getPlayerFromEvent(event: Event): Player? {
         return when (event) {

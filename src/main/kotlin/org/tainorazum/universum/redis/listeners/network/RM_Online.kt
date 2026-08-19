@@ -1,9 +1,10 @@
-package org.tainorazum.universum.redis.listeners
+package org.tainorazum.universum.redis.listeners.network
 
 import com.google.gson.Gson
 import org.tainorazum.universum.network.NetworkPlayerEvent
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisSubscriber
+import org.tainorazum.universum.redis.listeners.RM_Channel
 
 class RM_Online : RM_Channel(NetworkPlayerManager.CHANNEL) {
 

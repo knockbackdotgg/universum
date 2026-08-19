@@ -1,10 +1,11 @@
-package org.tainorazum.universum.redis.listeners
+package org.tainorazum.universum.redis.listeners.games
 
 import com.google.gson.Gson
 import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.game.util.GameRequest
 import org.tainorazum.universum.redis.RedisSubscriber
+import org.tainorazum.universum.redis.listeners.RM_Channel
 
 class RM_GameRequest : RM_Channel("game_request") {
 

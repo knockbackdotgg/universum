@@ -14,17 +14,20 @@ enum class Permission(
     CMD_DEFAULT_KITEDITOR(listOf(Allowed.DEFAULT)),
     CMD_DEFAULT_INFO(listOf(Allowed.DEFAULT)),
     CMD_DEFAULT_CYCLEHOLO(listOf(Allowed.DEFAULT)),
+    CMD_DEFAULT_FRIENDS(listOf(Allowed.DEFAULT)),
 
     CMD_UNIVERSUM_GENERAL(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_DATABASE(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_LOBBY(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_OTHER(listOf(Allowed.OWNER)),
     CMD_UNIVERSUM_SERVERLIST(listOf(Allowed.OWNER)),
+    CMD_UNIVERSUM_KITEDITOR(listOf(Allowed.OWNER)),
 
     CMD_ADMIN_GENERAL(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_WHITELIST(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_PUNISHMENTS(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_BYPASS(listOf(Allowed.OWNER, Allowed.ADMIN)),
+    CMD_ADMIN_KITS(listOf(Allowed.OWNER, Allowed.ADMIN)),
 
     ;
 

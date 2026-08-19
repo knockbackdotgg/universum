@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import gg.flyte.twilight.event.event
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
+import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.entity.Player
 import org.bukkit.event.EventPriority
@@ -14,14 +15,19 @@ import org.tainorazum.universum.chat.ChatMessage
 import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
 import org.tainorazum.universum.network.NetworkPlayer
 import org.tainorazum.universum.network.NetworkPlayerEvent
-import org.tainorazum.universum.punishment.DB_Punishments
+import org.tainorazum.universum.punishment.database.DB_Punishments
 import org.tainorazum.universum.redis.RedisManager
-import org.tainorazum.universum.setting.DB_PlayerSettings
+import org.tainorazum.universum.setting.database.DB_PlayerSettings
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
+data class ServerMessage(
+    val uuid: UUID, // target
+    val jsonComponent: String
+)
 
 object NetworkPlayerManager {
 
@@ -43,6 +49,10 @@ object NetworkPlayerManager {
             quitMessage(null)
             handleLocalQuit(player, Universum.server.identifier)
         }
+    }
+
+    fun isNetworkOnline(uuid: UUID): Boolean {
+        return onlinePlayers.containsKey(uuid)
     }
 
     fun loadInitialPlayers() {
@@ -84,6 +94,12 @@ object NetworkPlayerManager {
         PlayerUtility.uncachePlayer(uuid)
         DB_Punishments.invalidate(uuid)
         DB_PlayerCosmetics.invalidate(uuid)
+
+        Universum.friendsManager.friendActivityLeaveNotify(uuid)
+    }
+
+    fun handleTrueNetworkJoin(uuid: UUID) {
+        Universum.friendsManager.friendActivityJoinNotify(uuid)
     }
 
     fun handleVelocitySwitch(uuid: UUID, name: String, currentServer: String) {
@@ -96,7 +112,10 @@ object NetworkPlayerManager {
 
     fun handleRemoteEvent(event: NetworkPlayerEvent) {
         when (event.type) {
-            NetworkPlayerEvent.Type.JOIN -> onlinePlayers[event.player.uuid] = event.player
+            NetworkPlayerEvent.Type.JOIN -> {
+                onlinePlayers[event.player.uuid] = event.player
+                handleTrueNetworkJoin(event.player.uuid)
+            }
             NetworkPlayerEvent.Type.QUIT,
             NetworkPlayerEvent.Type.BANNED,
             NetworkPlayerEvent.Type.MUTED,
@@ -118,4 +137,18 @@ object NetworkPlayerManager {
 
         RedisManager.publish("chat_message", gson.toJson(chatMessage))
     }
+
+    fun attemptServerMessage(uuid: UUID, message: Component) {
+        val jsonString = GsonComponentSerializer.gson().serialize(message)
+        val serverMessage = ServerMessage(uuid, jsonString)
+
+        RedisManager.publish("server_message", gson.toJson(serverMessage))
+    }
+
+    fun serverMessage(serverMessage: ServerMessage) {
+        val player = Bukkit.getPlayer(serverMessage.uuid) ?: return
+        val component = GsonComponentSerializer.gson().deserialize(serverMessage.jsonComponent)
+        player.sendMessage(component)
+    }
+
 }

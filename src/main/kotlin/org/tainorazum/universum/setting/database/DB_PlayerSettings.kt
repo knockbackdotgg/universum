@@ -1,11 +1,12 @@
-package org.tainorazum.universum.setting
+package org.tainorazum.universum.setting.database
 
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
-import org.tainorazum.universum.utility.database.DatabaseUtil.dba
+import org.tainorazum.universum.setting.manager.PlayerSetting
+import org.tainorazum.universum.utility.database.DatabaseUtil
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -26,7 +27,7 @@ object DB_PlayerSettings : Table("player_settings") {
      * Guarantees default values are initialized and stored in the DB if missing.
      */
     fun cacheAllSettings(uuid: UUID): CompletableFuture<Unit> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 // Fetch all saved settings for the player from the database
                 val dbRows = DB_PlayerSettings.selectAll()
@@ -74,7 +75,7 @@ object DB_PlayerSettings : Table("player_settings") {
         }
 
         // Fallback if player settings weren't pre-cached
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 val existingValue = DB_PlayerSettings.selectAll()
                     .where {
@@ -111,7 +112,7 @@ object DB_PlayerSettings : Table("player_settings") {
      * Saves or updates a setting value for a given player and updates the cache.
      */
     fun setSetting(uuid: UUID, setting: PlayerSetting, value: String): CompletableFuture<Boolean> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 // Fixed: Removed explicit key arguments for MySQL dialect compatibility
                 DB_PlayerSettings.upsert {

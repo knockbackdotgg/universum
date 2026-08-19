@@ -15,10 +15,8 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.redis.RedisManager // Replace with your Redis class
-import org.tainorazum.universum.redis.listeners.RM_Nametag
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.emptyMap
 
 data class NametagPayload(
     val uuid: String,

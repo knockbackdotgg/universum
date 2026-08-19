@@ -1,4 +1,4 @@
-package org.tainorazum.universum.punishment
+package org.tainorazum.universum.punishment.database
 
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -9,7 +9,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import org.tainorazum.universum.utility.database.DatabaseUtil.dba
+import org.tainorazum.universum.punishment.manager.Punishment
+import org.tainorazum.universum.punishment.manager.PunishmentType
+import org.tainorazum.universum.utility.database.DatabaseUtil
 import java.time.Duration
 import java.time.Instant
 import java.util.Date
@@ -61,7 +63,7 @@ object DB_Punishments : Table("punishments") {
     // =========================================================================
 
     fun punish(punishment: Punishment): CompletableFuture<Boolean> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 DB_Punishments.insert {
                     it[playerUuid] = punishment.uuid.toString()
@@ -86,11 +88,11 @@ object DB_Punishments : Table("punishments") {
      * @usage Unpunish/archive a player's punishment
      */
     fun unPunish(uuid: UUID, id: Int): CompletableFuture<Boolean> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 DB_Punishments.update(
                     {
-                        DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.id eq id)
+                        playerUuid eq uuid.toString() and (DB_Punishments.id eq id)
                     }
                 ) {
                     it[archived] = true
@@ -105,12 +107,12 @@ object DB_Punishments : Table("punishments") {
     }
 
     fun archivePunishment(id: Int): CompletableFuture<Boolean> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 // Find target UUID first to selectively invalidate their cache
                 val targetUuid = DB_Punishments.selectAll()
                     .where { DB_Punishments.id eq id }
-                    .singleOrNull()?.get(DB_Punishments.playerUuid)
+                    .singleOrNull()?.get(playerUuid)
 
                 val updatedCount = DB_Punishments.update(
                     { DB_Punishments.id eq id }
@@ -129,7 +131,7 @@ object DB_Punishments : Table("punishments") {
     }
 
     fun removePunishment(uuid: UUID, id: Int): CompletableFuture<Boolean> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 DB_Punishments.deleteWhere {
                     DB_Punishments.playerUuid eq uuid.toString() and (DB_Punishments.id eq id)
@@ -209,7 +211,7 @@ object DB_Punishments : Table("punishments") {
      * Bypasses cache to fetch all global punishments across all players.
      */
     fun getPunishments(): CompletableFuture<List<Punishment>> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 DB_Punishments.selectAll()
                     .map { row -> toPunishment(row) }
@@ -222,27 +224,27 @@ object DB_Punishments : Table("punishments") {
     // =========================================================================
 
     private fun fetchPlayerPunishmentsFromDb(uuid: UUID): CompletableFuture<List<Punishment>> {
-        return dba {
+        return DatabaseUtil.dba {
             transaction {
                 DB_Punishments.selectAll()
-                    .where { DB_Punishments.playerUuid eq uuid.toString() }
+                    .where { playerUuid eq uuid.toString() }
                     .map { row -> toPunishment(row) }
             }
         }
     }
 
     fun toPunishment(row: ResultRow): Punishment {
-        val rawMillis = row[DB_Punishments.duration]
+        val rawMillis = row[duration]
 
         return Punishment(
-            id = row[DB_Punishments.id],
-            uuid = UUID.fromString(row[DB_Punishments.playerUuid]),
-            type = row[DB_Punishments.type],
-            reason = row[DB_Punishments.reason],
+            id = row[id],
+            uuid = UUID.fromString(row[playerUuid]),
+            type = row[type],
+            reason = row[reason],
             duration = rawMillis?.let { Duration.ofMillis(it) },
-            punishedOn = Date(row[DB_Punishments.punishedOn]),
-            punisherUuid = UUID.fromString(row[DB_Punishments.punisherUuid]),
-            archived = row[DB_Punishments.archived]
+            punishedOn = Date(row[punishedOn]),
+            punisherUuid = UUID.fromString(row[punisherUuid]),
+            archived = row[archived]
         )
     }
 

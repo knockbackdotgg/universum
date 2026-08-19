@@ -4,8 +4,6 @@ import net.kyori.adventure.text.Component
 import org.bukkit.Sound
 import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.security.Permission
-import org.tainorazum.universum.setting.manager.gui.PlayerSettingGUI
-import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.player.PlayerUtility.sound
@@ -23,7 +21,7 @@ class CycleHoloCommand {
         actor: BukkitCommandActor,
         holoId: String,
         @Suggest("next", "previous") direction: String = "next"
-    ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_CYCLEHOLO) {
+    ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_CYCLEHOLO, true) {
 
         val player = actor.requirePlayer()
 

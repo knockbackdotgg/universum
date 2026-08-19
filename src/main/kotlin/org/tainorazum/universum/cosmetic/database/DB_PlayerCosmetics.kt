@@ -125,6 +125,8 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
 
                         is CosmeticData.Aura -> data
 
+                        is CosmeticData.Glow -> data
+
                         null -> {
                             println("[Cosmetics] Enabled cosmetic '$enabledName' not found in database for $uuid.")
                             null

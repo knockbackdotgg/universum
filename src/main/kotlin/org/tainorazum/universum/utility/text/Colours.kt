@@ -23,22 +23,31 @@ object Colours {
     val GREY: TextColor = TextColor.fromHexString("#9ea4ad")!!
     val DARK_GREY: TextColor = TextColor.fromHexString("#555555")!!
 
-    fun tagResolver(): TagResolver = TagResolver.builder().resolvers(
-        Placeholder.styling("yellow", YELLOW),
-        Placeholder.styling("gold", GOLD),
-        Placeholder.styling("white", WHITE),
-        Placeholder.styling("red", RED),
-        Placeholder.styling("orange", ORANGE),
-        Placeholder.styling("green", GREEN),
-        Placeholder.styling("dark_green", DARK_GREEN),
-        Placeholder.styling("blue", BLUE),
-        Placeholder.styling("aqua", AQUA),
-        Placeholder.styling("light_purple", LIGHT_PURPLE),
-        Placeholder.styling("purple", PURPLE),
-        Placeholder.styling("magenta", MAGENTA),
-        Placeholder.styling("pink", PINK),
-        Placeholder.styling("grey", GREY),
-        Placeholder.styling("light_blue", LIGHT_BLUE),
-        Placeholder.styling("sky_blue", SKY_BLUE)
-    ).build()
+    val ALL: Map<String, TextColor> = mapOf(
+        "yellow" to YELLOW,
+        "gold" to GOLD,
+        "white" to WHITE,
+        "red" to RED,
+        "orange" to ORANGE,
+        "green" to GREEN,
+        "dark_green" to DARK_GREEN,
+        "blue" to BLUE,
+        "aqua" to AQUA,
+        "light_purple" to LIGHT_PURPLE,
+        "purple" to PURPLE,
+        "magenta" to MAGENTA,
+        "pink" to PINK,
+        "grey" to GREY,
+        "light_blue" to LIGHT_BLUE,
+        "sky_blue" to SKY_BLUE,
+        "dark_grey" to DARK_GREY
+    )
+
+    fun fromName(name: String?): TextColor? = ALL[name?.lowercase()]
+
+    fun tagResolver(): TagResolver = TagResolver.builder().apply {
+        ALL.forEach { (name, color) ->
+            resolver(Placeholder.styling(name, color))
+        }
+    }.build()
 }

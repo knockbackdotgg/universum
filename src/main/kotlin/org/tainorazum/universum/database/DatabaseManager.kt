@@ -16,12 +16,14 @@ import org.tainorazum.universum.engine.arena.database.DB_ArenaGametypes
 import org.tainorazum.universum.engine.arena.database.DB_ArenaKits
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
+import org.tainorazum.universum.friends.database.DB_Friends
+import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.lobby.database.DB_Lobby
-import org.tainorazum.universum.punishment.DB_Punishments
+import org.tainorazum.universum.punishment.database.DB_Punishments
 import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
-import org.tainorazum.universum.setting.DB_PlayerSettings
+import org.tainorazum.universum.setting.database.DB_PlayerSettings
 
 class DatabaseManager {
 
@@ -84,6 +86,8 @@ class DatabaseManager {
         create(DB_PlayerSettings)
         create(DB_PlayerCosmetics)
         create(DB_Cosmetics)
+        create(DB_KitEditor)
+        create(DB_Friends)
     }
 
 }

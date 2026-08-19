@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
+import org.tainorazum.universum.utility.text.Colours
 
 object CosmeticSerializer {
 
@@ -30,10 +31,15 @@ object CosmeticSerializer {
                 json.addProperty("material", data.material.name)
             }
             is CosmeticData.Trail -> {
-                json.addProperty("particle", data.particleName)
+                json.addProperty("name", data.name)
+                json.addProperty("color", data.color.toString())
             }
             is CosmeticData.Aura -> {
-                json.addProperty("particle", data.particleName)
+                json.addProperty("name", data.name)
+                json.addProperty("color", data.color.toString())
+            }
+            is CosmeticData.Glow -> {
+                json.addProperty("color", data.color.toString())
             }
         }
 
@@ -69,10 +75,19 @@ object CosmeticSerializer {
                 CosmeticData.ArmorTrimColor(mat)
             }
             CosmeticType.TRAIL -> {
-                CosmeticData.Trail(json.get("particle").asString)
+                val colorName = json.get("color")?.asString
+                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                CosmeticData.Trail(json.get("name").asString, color)
             }
             CosmeticType.AURA -> {
-                CosmeticData.Aura(json.get("particle").asString)
+                val colorName = json.get("color")?.asString
+                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                CosmeticData.Aura(json.get("name").asString, color)
+            }
+            CosmeticType.GLOW -> {
+                val colorName = json.get("color")?.asString
+                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                CosmeticData.Glow(color)
             }
         }
     }
