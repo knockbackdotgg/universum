@@ -7,6 +7,7 @@ import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
 import org.tainorazum.universum.chat.manager.ChatFilterManager
 import org.tainorazum.universum.chat.manager.ChatManager
+import org.tainorazum.universum.coins.CoinsManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandKits
@@ -86,6 +87,7 @@ class Universum : JavaPlugin() {
         lateinit var playerSettingManager: PlayerSettingManager private set
         lateinit var kitEditorManager: KitEditorManager private set
         lateinit var friendsManager: FriendsManager private set
+        lateinit var coinsManager: CoinsManager private set
         lateinit var updater: Updater private set
 
         // lobby servers
@@ -130,6 +132,7 @@ class Universum : JavaPlugin() {
         playerSettingManager = PlayerSettingManager()
         kitEditorManager = KitEditorManager()
         friendsManager = FriendsManager()
+        coinsManager = CoinsManager()
 
         // 3. Initialize Redis NOW (after friendsManager exists)
         val redisEnabled = config.getBoolean("redis.enabled", false)
@@ -145,39 +148,11 @@ class Universum : JavaPlugin() {
         DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
 
         // 4. Register Commands & Features
-        /*val lamp = BukkitLamp.builder(this)
-            .parameterTypes { types ->
-                types.addParameterType(Duration::class.java) { input, _ ->
-                    val text = input.readString()
-                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
-                }
-            }
-            .build()*/
-
         val lamp = BukkitLamp.builder(this)
             .parameterTypes { types ->
                 types.addParameterType(Duration::class.java) { input, _ ->
                     val text = input.readString()
                     parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
-                }
-            }
-            .suggestionProviders { providers ->
-                // Tab-complete all online network players
-                providers.addProvider(NetworkPlayers::class.java) { _ ->
-                    NetworkPlayerManager.onlinePlayers.values.map { it.name }
-                }
-
-                // Tab-complete the executing player's added friends
-                providers.addProvider(Friends::class.java) { context ->
-                    val player = (context.actor() as? BukkitCommandActor)?.requirePlayer()
-                        ?: return@addProvider emptyList()
-
-                    runCatching {
-                        DB_Friends.getFriends(player.uniqueId).get(200, java.util.concurrent.TimeUnit.MILLISECONDS)
-                    }.getOrNull()?.mapNotNull { friendUUID ->
-                        Bukkit.getPlayer(friendUUID)?.name
-                            ?: NetworkPlayerManager.onlinePlayers[friendUUID]?.name
-                    } ?: emptyList()
                 }
             }
             .build()

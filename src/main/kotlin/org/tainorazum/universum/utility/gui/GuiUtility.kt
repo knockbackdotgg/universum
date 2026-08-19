@@ -26,7 +26,7 @@ object GuiUtility {
     fun item(material: Material, name: Component, lore: List<Component>, showFlags: Boolean = false): ItemStack {
         return ItemStack(material).apply {
             editMeta { meta ->
-                meta.displayName(name)
+                meta.displayName(name.norm())
                 meta.lore(lore)
                 if(!showFlags) {
                     meta.addItemFlags(*ItemFlag.entries.toTypedArray())

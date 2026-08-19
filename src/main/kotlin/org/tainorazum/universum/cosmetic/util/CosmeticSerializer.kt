@@ -16,8 +16,11 @@ object CosmeticSerializer {
         val json = JsonObject()
 
         when (data) {
-            is CosmeticData.Tag -> {
+            is CosmeticData.ChatTag -> {
                 json.addProperty("component", miniMessage.serialize(data.component))
+            }
+            is CosmeticData.ChatColor -> {
+                json.addProperty("color", data.color.toString())
             }
             is CosmeticData.Pet -> {
                 json.addProperty("entityType", data.entityType.name)
@@ -56,9 +59,14 @@ object CosmeticSerializer {
         val json = gson.fromJson(jsonString, JsonObject::class.java) ?: return null
 
         return when (type) {
-            CosmeticType.TAG -> {
+            CosmeticType.CHATTAG -> {
                 val compString = json.get("component").asString
-                CosmeticData.Tag(miniMessage.deserialize(compString))
+                CosmeticData.ChatTag(miniMessage.deserialize(compString))
+            }
+            CosmeticType.CHATCOLOR -> {
+                val colorName = json.get("color")?.asString
+                val color = Colours.fromName(colorName) ?: Colours.WHITE
+                CosmeticData.ChatColor(color)
             }
             CosmeticType.PET -> {
                 val entityType = EntityType.valueOf(json.get("entityType").asString)

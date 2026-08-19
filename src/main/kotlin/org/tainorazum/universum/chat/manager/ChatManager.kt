@@ -31,7 +31,7 @@ class ChatManager {
         val nameFuture = PlayerUtility.getName(uuid)
         val mutedFuture = Universum.punishmentManager.isMuted(uuid)
         val chatFilterFuture = Universum.chatFilterManager.filter(uuid, rawMessage)
-        val tagFuture = Universum.cosmeticManager.get(uuid, CosmeticType.TAG)
+        val tagFuture = Universum.cosmeticManager.get(uuid, CosmeticType.CHATTAG)
 
         CompletableFuture.allOf(rankFuture, nameFuture, mutedFuture, chatFilterFuture, tagFuture).thenAccept {
             try {

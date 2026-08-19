@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.coins.database.DB_Coins
 import org.tainorazum.universum.cosmetic.database.DB_Cosmetics
 import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
 import org.tainorazum.universum.database.example.EX_PlayerData
@@ -88,6 +89,7 @@ class DatabaseManager {
         create(DB_Cosmetics)
         create(DB_KitEditor)
         create(DB_Friends)
+        create(DB_Coins)
     }
 
 }
