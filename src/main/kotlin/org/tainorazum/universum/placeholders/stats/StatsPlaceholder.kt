@@ -3,7 +3,7 @@ package org.tainorazum.universum.placeholders.stats
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.utility.player.PlayerUtility
 import java.util.UUID

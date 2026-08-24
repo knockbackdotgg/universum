@@ -80,6 +80,8 @@ object NetworkPlayerManager {
         PlayerUtility.cachePlayer(player.uniqueId, player.name)
         DB_Punishments.getPunishments(player.uniqueId)
         DB_PlayerCosmetics.getPlayerCosmetics(player.uniqueId).thenApply { }
+
+        handleTrueNetworkJoin(player.uniqueId)
     }
 
     fun handleLocalQuit(player: Player, serverName: String) {
@@ -112,10 +114,7 @@ object NetworkPlayerManager {
 
     fun handleRemoteEvent(event: NetworkPlayerEvent) {
         when (event.type) {
-            NetworkPlayerEvent.Type.JOIN -> {
-                onlinePlayers[event.player.uuid] = event.player
-                handleTrueNetworkJoin(event.player.uuid)
-            }
+            NetworkPlayerEvent.Type.JOIN -> onlinePlayers[event.player.uuid] = event.player
             NetworkPlayerEvent.Type.QUIT,
             NetworkPlayerEvent.Type.BANNED,
             NetworkPlayerEvent.Type.MUTED,
@@ -137,6 +136,7 @@ object NetworkPlayerManager {
 
         RedisManager.publish("chat_message", gson.toJson(chatMessage))
     }
+
 
     fun attemptServerMessage(uuid: UUID, message: Component) {
         val jsonString = GsonComponentSerializer.gson().serialize(message)

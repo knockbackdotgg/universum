@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.utility.text.ComponentSerializer
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.io.File

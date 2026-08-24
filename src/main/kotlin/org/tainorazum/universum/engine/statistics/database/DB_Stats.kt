@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.sum
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap

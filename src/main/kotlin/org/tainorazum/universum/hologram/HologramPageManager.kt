@@ -1,6 +1,6 @@
 package org.tainorazum.universum.hologram
 
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.tainorazum.universum.engine.game.manager.fields.GameType
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 

@@ -2,7 +2,7 @@ package org.tainorazum.universum.command.universum.commands
 
 import net.kyori.adventure.text.Component
 import org.tainorazum.universum.command.universum.UniversumCommandSub
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisManager

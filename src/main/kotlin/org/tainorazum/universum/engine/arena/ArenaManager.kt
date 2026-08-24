@@ -1,51 +1,46 @@
 package org.tainorazum.universum.engine.arena
 
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.arena.database.ArenaTemplate
 import java.io.File
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 class ArenaManager {
 
-    var success: CompletableFuture<Boolean> = CompletableFuture<Boolean>()
-        private set
+    val success = CompletableFuture<Boolean>()
 
     private val adbm = Universum.adbm
 
-    private val arenas = ArrayList<Arena>()
-    private val availableArenas = ArrayList<Arena>()
+    private val activeArenas = CopyOnWriteArrayList<Arena>()
+    private val availableArenas = CopyOnWriteArrayList<Arena>()
 
-    private val ARENA_GAP = 10.000;
+    private val arenaGap: Double = 1000.0
 
-    // templates
-
-    private val templateCache = HashMap<String, ArenaTemplate>()
+    private val templateCache = ConcurrentHashMap<String, ArenaTemplate>()
 
     init {
-        loadAllTemplates().thenAccept { success ->
-            if(success) {
-                this.success.complete(true)
-            }
+        loadAllTemplates().thenAccept { loaded ->
+            success.complete(loaded)
         }
     }
 
-    fun loadAllTemplates(identifiers: List<String>) : CompletableFuture<Boolean> {
-        val future = CompletableFuture<Boolean>()
-
-        identifiers.forEach { id ->
+    fun loadAllTemplates(identifiers: List<String>): CompletableFuture<Boolean> {
+        val futures = identifiers.map { id ->
             adbm.getArenaTemplate(id).thenAccept { template ->
                 if (template != null) {
                     templateCache[id] = template
-                    future.complete(true)
-                } else {
-                    future.complete(false)
                 }
             }
+        }.toTypedArray()
+
+        return CompletableFuture.allOf(*futures).thenApply {
+            templateCache.isNotEmpty()
         }
-        return future
     }
 
     fun loadAllTemplates(): CompletableFuture<Boolean> {
@@ -58,68 +53,71 @@ class ArenaManager {
                 for (template in allTemplates) {
                     templateCache[template.id] = template
                 }
-                org.bukkit.Bukkit.getLogger().info("[ArenaManager] Successfully cached ${templateCache.size} arena templates into RAM!")
-
+                Bukkit.getLogger().info("[ArenaManager] Cached ${templateCache.size} arena templates into memory.")
                 future.complete(true)
             } catch (e: Exception) {
+                Bukkit.getLogger().severe("[ArenaManager] Failed to cache arena templates: ${e.message}")
                 future.complete(false)
             }
         }
         return future
     }
 
-    // game usable
-
-
-    fun retrieveArena(templateId: String) : CompletableFuture<Arena?> {
+    fun retrieveArena(templateId: String): CompletableFuture<Arena?> {
         val future = CompletableFuture<Arena?>()
 
-        if(availableArenas.firstOrNull() != null) {
-            future.complete(availableArenas.firstOrNull())
+        val available = availableArenas.firstOrNull { it.templateIdentifier == templateId }
+        if (available != null) {
+            availableArenas.remove(available)
+            future.complete(available)
             return future
         }
 
-        createArena(generateNextId(templateId)).thenAccept { arena ->
-            if(arena != null) {
+        val instanceId = generateNextId(templateId)
+        createArenaInstance(instanceId, templateId).thenAccept { arena ->
+            future.complete(arena)
+        }
+
+        return future
+    }
+
+    fun releaseArena(arena: Arena): CompletableFuture<Boolean> {
+        return arena.reset().thenApply {
+            if (!availableArenas.contains(arena)) {
+                availableArenas.add(arena)
+            }
+            true
+        }
+    }
+
+    private fun createArenaInstance(instanceId: String, templateId: String): CompletableFuture<Arena?> {
+        val future = CompletableFuture<Arena?>()
+
+        val template = templateCache[templateId]
+        if (template == null) {
+            Bukkit.getLogger().warning("[ArenaManager] Cannot create arena instance. Template '$templateId' not found.")
+            future.complete(null)
+            return future
+        }
+
+        val xOffset = activeArenas.size * arenaGap
+        val shiftedCenter = template.center.clone().apply {
+            x += xOffset
+        }
+
+        val arena = Arena(instanceId, template.id, template.schematic, shiftedCenter, template.radius)
+
+        arena.reset().thenAccept { created ->
+            if (created) {
+                activeArenas.add(arena)
                 future.complete(arena)
             } else {
                 future.complete(null)
             }
         }
-        return future
-    }
-
-    fun releaseArena(arena: Arena) : Boolean {
-        return availableArenas.add(arena)
-    }
-
-    private fun createArena(id: String): CompletableFuture<Arena?> {
-        val future = CompletableFuture<Arena?>()
-
-        val at = templateCache[id]
-
-        if(at == null) {
-            future.complete(null)
-            return future
-        }
-
-        val xOffset = arenas.size * ARENA_GAP
-        val shiftedCenter = at.center.clone().apply {
-            x += xOffset
-        }
-
-        val arena = Arena(id, at.id, at.schematic, shiftedCenter, at.radius)
-        arena.create().thenAccept { success ->
-            if(success) {
-                arenas.add(arena)
-                future.complete(arena)
-            }
-        }
 
         return future
     }
-
-    // registration & management
 
     fun registerArena(
         identifier: String,
@@ -130,12 +128,28 @@ class ArenaManager {
         locations: Map<String, Location>
     ): CompletableFuture<Boolean> {
         return adbm.saveArena(identifier, name, description, schematic, centerLocation, locations)
+            .thenCompose { saved ->
+                if (saved) {
+                    loadAllTemplates()
+                } else {
+                    CompletableFuture.completedFuture(false)
+                }
+            }
     }
-
-    // utilities
 
     fun generateNextId(templateId: String): String {
-        return "$templateId-${arenas.count{ it.templateIdentifier == templateId }+1}"
+        val count = activeArenas.count { it.templateIdentifier == templateId } + 1
+        return "$templateId-$count"
     }
 
+    fun getTemplate(templateId: String): ArenaTemplate? = templateCache[templateId]
+
+    fun shutdown() {
+        activeArenas.forEach { arena ->
+            arena.reset()
+        }
+        activeArenas.clear()
+        availableArenas.clear()
+        templateCache.clear()
+    }
 }

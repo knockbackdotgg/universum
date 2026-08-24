@@ -3,7 +3,6 @@ package org.tainorazum.universum.redis.listeners.games
 import com.google.gson.Gson
 import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.engine.game.util.GameRequest
 import org.tainorazum.universum.redis.RedisSubscriber
 import org.tainorazum.universum.redis.listeners.RM_Channel
 
@@ -12,18 +11,14 @@ class RM_GameRequest : RM_Channel("game_request") {
     private val gson = Gson()
 
     init {
-        RedisSubscriber.register(channel) { message ->
-            try {
-                // 1. Deserialize on the async worker thread (Fast)
-                val req = gson.fromJson(message, GameRequest::class.java)
+        /*RedisSubscriber.register(channel) { message ->
+            runCatching {
+                val req = gson.fromJson(message, GameRequest::class.java) ?: return@register
 
-                // 2. Schedule game creation / Bukkit mutations on the main thread
                 Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-                    Universum.gameManager.attemptCreateGame(req)
+                    Universum.gameManager.processGameRequest(req)
                 })
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
-        }
+        }*/
     }
 }
