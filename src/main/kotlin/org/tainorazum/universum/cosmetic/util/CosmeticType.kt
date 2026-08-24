@@ -4,10 +4,10 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextColor
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
-import org.tainorazum.universum.utility.text.Colours
 
 enum class CosmeticType {
-    TAG,
+    CHAT_TAG,
+    CHAT_COLOR,
     PET,
     TRAIL,
     AURA,
@@ -17,7 +17,9 @@ enum class CosmeticType {
 }
 
 sealed class CosmeticData {
-    data class Tag(val component: Component): CosmeticData()
+    data class ChatTag(val text: String, val color: TextColor): CosmeticData()
+
+    data class ChatColor(val color: TextColor): CosmeticData()
 
     data class Pet(
         val entityType: EntityType,

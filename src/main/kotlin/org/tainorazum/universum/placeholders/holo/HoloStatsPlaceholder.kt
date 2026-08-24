@@ -3,6 +3,7 @@ package org.tainorazum.universum.placeholders.holo
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
+import org.tainorazum.universum.coins.database.DB_Coins
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.hologram.HologramRegistry
@@ -20,6 +21,12 @@ class HoloStatsPlaceholder : PlaceholderExpansion() {
 
     private val resolvedNames = ConcurrentHashMap<UUID, String>()
 
+    // Cache structure: Key -> (FetchTimestamp, LeaderboardEntries)
+    private val leaderboardCache = ConcurrentHashMap<String, Pair<Long, List<DB_Stats.LeaderboardEntry>>>()
+    private val pendingQueries = ConcurrentHashMap.newKeySet<String>()
+
+    private val cacheTtlMs = 60_000L // Refresh cache every 60 seconds
+
     override fun onRequest(player: OfflinePlayer?, params: String): String? {
         if (player == null) return ""
 
@@ -28,59 +35,66 @@ class HoloStatsPlaceholder : PlaceholderExpansion() {
         if (args.size < 2) return null
 
         val holoId = args[0]
-        val action = args[1] // "title", "current", or position number like "1"
+        val action = args[1]
 
-        // Handle page number indicator: %holopage_<holoId>_current%
         if (action == "current") {
             return HologramPageManager.getPage(player.uniqueId, holoId).toString()
         }
 
-        // Get current page configuration for this hologram
         val currentPageNumber = HologramPageManager.getPage(player.uniqueId, holoId)
         val activePageConfig = HologramRegistry.getActivePage(holoId, currentPageNumber) ?: return "Invalid Holo"
 
-        // Handle title: %holopage_<holoId>_title%
         if (action == "title") {
             return activePageConfig.title
         }
 
-        // Handle position query: %holopage_<holoId>_<position>_[name/value]%
         val positionIndex = (action.toIntOrNull() ?: return null) - 1
-        val fetchType = args.getOrNull(2) ?: "all" // "name", "value", or "all"
+        val fetchType = args.getOrNull(2) ?: "all"
 
-        // Pass the page config's ranked property (defaults to false if not specified on the page)
-        val isRanked = activePageConfig.isRanked
+        // Build a unique key for caching this specific leaderboard
+        val cacheKey = "${activePageConfig.statIdentifier}_${activePageConfig.gameType}_${activePageConfig.isRanked}"
+        val cached = leaderboardCache[cacheKey]
+        val now = System.currentTimeMillis()
 
-        val future = if (activePageConfig.gameType != null) {
-            DB_Stats.getTop(
-                id = activePageConfig.statIdentifier,
-                gameType = activePageConfig.gameType,
-                ranked = isRanked,
-                limit = 10
-            )
-        } else {
-            // GameType is null -> Fetch TOTAL across all gametypes
-            DB_Stats.getTopGlobal(
-                id = activePageConfig.statIdentifier,
-                ranked = isRanked,
-                limit = 10
-            )
+        // Trigger a background refresh if cache is missing or expired
+        if ((cached == null || now - cached.first > cacheTtlMs) && pendingQueries.add(cacheKey)) {
+            val future = if (activePageConfig.statIdentifier.equals("coins", ignoreCase = true)) {
+                DB_Coins.getTopCoins(10)
+            } else if (activePageConfig.gameType != null) {
+                DB_Stats.getTop(
+                    id = activePageConfig.statIdentifier,
+                    gameType = activePageConfig.gameType,
+                    ranked = activePageConfig.isRanked,
+                    limit = 10
+                )
+            } else {
+                DB_Stats.getTopGlobal(
+                    id = activePageConfig.statIdentifier,
+                    ranked = activePageConfig.isRanked,
+                    limit = 10
+                )
+            }
+
+            future.thenAccept { list ->
+                leaderboardCache[cacheKey] = Pair(System.currentTimeMillis(), list)
+                pendingQueries.remove(cacheKey)
+            }.exceptionally {
+                pendingQueries.remove(cacheKey)
+                null
+            }
         }
 
-        return if (future.isDone) {
-            val topList = future.getNow(emptyList())
-            val entry = topList.getOrNull(positionIndex) ?: return "N/A"
+        // Return cached entries if available
+        val topList = cached?.second ?: return "Loading..."
+        val entry = topList.getOrNull(positionIndex) ?: return "N/A"
 
-            val resolvedName = resolvePlayerName(entry.uuid)
-            val formattedValue = formatValue(entry.value)
+        val resolvedName = resolvePlayerName(entry.uuid)
+        val formattedValue = formatValue(entry.value)
 
-            when (fetchType) {
-                "name" -> resolvedName
-                "value" -> formattedValue
-                else -> "$resolvedName: $formattedValue"
-            }
-        } else {
-            "Loading..."
+        return when (fetchType) {
+            "name" -> resolvedName
+            "value" -> formattedValue
+            else -> "$resolvedName: $formattedValue"
         }
     }
 

@@ -59,7 +59,7 @@ object Messages {
 
     // join/leave
     fun JOIN_MSG() = Component.text("+ <name>", Colours.GREEN)
-    fun LEAVE_MSG() = Component.text("")
+    fun LEAVE_MSG() = Component.empty()
     fun KICKED_MSG() = Component.text("")
     fun KICKED_ERROR_MSG() = Component.text("We apologize, an error has occurred. Please rejoin.", Colours.RED)
 
@@ -113,7 +113,6 @@ object Messages {
     fun FRIEND_JOINED() = Component.text("<player>", Colours.GREEN).append(Component.text(" joined the network.",Colours.GREY))
     fun FRIEND_LEFT() = Component.text("<player>", Colours.GREEN).append(Component.text(" left the network.",Colours.GREY))
     fun FRIEND_REMOVE_SELF() = Component.text("You cannot unfriend yourself.", Colours.RED)
-    fun PENDING_FRIEND_REQUEST_EXISTS() = Component.text("You already friend requested <player>. You may friend request them again in <time>", Colours.YELLOW)
-
+    fun PENDING_FRIEND_REQUEST_EXISTS() = Component.text("You already friend requested <player>. You may friend request them again in <time>.", Colours.YELLOW)
 }
 

@@ -1,9 +1,12 @@
 package org.tainorazum.universum.cosmetic.database
 
 import net.kyori.adventure.text.Component
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -29,10 +32,9 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
     // =========================================================================
 
     data class CachedPlayerCosmetics(
-        // Maps CosmeticType to the currently enabled cosmetic name
         val enabledNames: Map<CosmeticType, String>,
-        // Set of (Type, Name) pairs currently marked enabled
-        val enabledPairs: Set<Pair<CosmeticType, String>>
+        val enabledPairs: Set<Pair<CosmeticType, String>>,
+        val ownedPairs: Set<Pair<CosmeticType, String>>
     )
 
     private val cache = ConcurrentHashMap<UUID, CompletableFuture<CachedPlayerCosmetics>>()
@@ -41,16 +43,10 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
     // Cache Management & Lifecycle
     // =========================================================================
 
-    /**
-     * Purges local RAM cache for a specific player UUID.
-     */
     fun invalidate(uuid: UUID) {
         cache.remove(uuid)
     }
 
-    /**
-     * Purges the entire player cosmetics RAM cache.
-     */
     fun invalidateAll() {
         cache.clear()
     }
@@ -59,7 +55,6 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
         return cache.computeIfAbsent(uuid) { id ->
             val future = fetchPlayerCosmeticsFromDb(id)
 
-            // Remove from cache if network/DB fetch fails so retries are allowed
             future.whenComplete { _, throwable ->
                 if (throwable != null) {
                     cache.remove(id)
@@ -75,33 +70,32 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
             transaction {
                 val enabledMap = mutableMapOf<CosmeticType, String>()
                 val enabledSet = mutableSetOf<Pair<CosmeticType, String>>()
+                val ownedSet = mutableSetOf<Pair<CosmeticType, String>>()
 
                 DB_PlayerCosmetics.selectAll()
-                    .where {
-                        (DB_PlayerCosmetics.uuid eq uuid.toString()) and
-                                (DB_PlayerCosmetics.enabled eq true)
-                    }
+                    .where { DB_PlayerCosmetics.uuid eq uuid.toString() }
                     .forEach { row ->
                         val cosmeticType = row[DB_PlayerCosmetics.type]
                         val cosmeticName = row[DB_PlayerCosmetics.name]
+                        val isEnabled = row[DB_PlayerCosmetics.enabled]
 
-                        enabledMap[cosmeticType] = cosmeticName
-                        enabledSet.add(cosmeticType to cosmeticName)
+                        ownedSet.add(cosmeticType to cosmeticName)
+
+                        if (isEnabled) {
+                            enabledMap[cosmeticType] = cosmeticName
+                            enabledSet.add(cosmeticType to cosmeticName)
+                        }
                     }
 
-                CachedPlayerCosmetics(enabledMap, enabledSet)
+                CachedPlayerCosmetics(enabledMap, enabledSet, ownedSet)
             }
         }
     }
 
     // =========================================================================
-    // Retrieval Methods (Serves From Cache)
+    // Retrieval Methods
     // =========================================================================
 
-    /**
-     * Retrieves the active cosmetic payload/object for a player.
-     * Uses cached active cosmetic name to avoid unnecessary database reads.
-     */
     fun get(uuid: UUID, type: CosmeticType): CompletableFuture<Any?> {
         return getEnabled(uuid, type).thenCompose { enabledName ->
             if (enabledName == null) {
@@ -109,24 +103,18 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
             } else {
                 DB_Cosmetics.getCosmetic(type, enabledName).thenApply { data ->
                     when (data) {
-                        is CosmeticData.Tag -> {
+                        is CosmeticData.ChatTag -> {
                             Component.text("[", Colours.DARK_GREY)
-                                .append(data.component)
+                                .append(Component.text(data.text, data.color))
                                 .append(Component.text("] ", Colours.DARK_GREY))
                         }
-
+                        is CosmeticData.ChatColor -> data.color
                         is CosmeticData.Pet -> data
-
                         is CosmeticData.ArmorTrim -> data.material
-
                         is CosmeticData.ArmorTrimColor -> data.material
-
                         is CosmeticData.Trail -> data
-
                         is CosmeticData.Aura -> data
-
-                        is CosmeticData.Glow -> data
-
+                        is CosmeticData.Glow -> data.color
                         null -> {
                             println("[Cosmetics] Enabled cosmetic '$enabledName' not found in database for $uuid.")
                             null
@@ -149,24 +137,55 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
         }
     }
 
+    fun getOwnedCosmetics(uuid: UUID, type: CosmeticType): CompletableFuture<Set<String>> {
+        return getPlayerCosmetics(uuid).thenApply { cached ->
+            cached.ownedPairs
+                .filter { it.first == type }
+                .map { it.second }
+                .toSet()
+        }
+    }
+
+    fun hasCosmetic(uuid: UUID, type: CosmeticType, name: String): CompletableFuture<Boolean> {
+        return getPlayerCosmetics(uuid).thenApply { cached ->
+            cached.ownedPairs.contains(type to name)
+        }
+    }
+
     // =========================================================================
-    // Data Ingestion & Mutators (Invalidates Cache On Success)
+    // Data Mutators
     // =========================================================================
 
     /**
-     * Enables a specific cosmetic for a player and disables any other active cosmetic of that type.
+     * Grants ownership of a cosmetic without necessarily enabling it immediately.
+     * Uses insertIgnore to safely handle duplicate calls without throwing SQL primary key errors.
      */
+    fun grantCosmetic(uuid: UUID, type: CosmeticType, name: String): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                DB_PlayerCosmetics.insertIgnore {
+                    it[DB_PlayerCosmetics.uuid] = uuid.toString()
+                    it[DB_PlayerCosmetics.type] = type
+                    it[DB_PlayerCosmetics.name] = name
+                    it[DB_PlayerCosmetics.enabled] = false
+                }
+                true
+            }
+        }.thenApply { success ->
+            if (success) invalidate(uuid)
+            success
+        }
+    }
+
     fun enableCosmetic(uuid: UUID, type: CosmeticType, name: String): CompletableFuture<Boolean> {
         return dba {
             transaction {
-                // 1. Disable current active cosmetic for this type
                 DB_PlayerCosmetics.update(
                     { (DB_PlayerCosmetics.uuid eq uuid.toString()) and (DB_PlayerCosmetics.type eq type) }
                 ) {
                     it[enabled] = false
                 }
 
-                // 2. Enable target cosmetic
                 val updatedRows = DB_PlayerCosmetics.update(
                     {
                         (DB_PlayerCosmetics.uuid eq uuid.toString()) and
@@ -177,7 +196,6 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
                     it[enabled] = true
                 }
 
-                // 3. Insert row if it didn't exist before
                 if (updatedRows == 0) {
                     DB_PlayerCosmetics.insert {
                         it[DB_PlayerCosmetics.uuid] = uuid.toString()
@@ -189,16 +207,11 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
                 true
             }
         }.thenApply { success ->
-            if (success) {
-                invalidate(uuid) // Purge RAM cache so the change takes effect immediately
-            }
+            if (success) invalidate(uuid)
             success
         }
     }
 
-    /**
-     * Disables any currently enabled cosmetic of a given type for a player.
-     */
     fun disableCosmetic(uuid: UUID, type: CosmeticType): CompletableFuture<Boolean> {
         return dba {
             transaction {
@@ -209,9 +222,23 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
                 } > 0
             }
         }.thenApply { success ->
-            if (success) {
-                invalidate(uuid) // Purge RAM cache so the change takes effect immediately
+            if (success) invalidate(uuid)
+            success
+        }
+    }
+
+    /**
+     * Removes a specific cosmetic from every player in the database and flushes all caches.
+     */
+    fun revokeCosmeticFromAll(type: CosmeticType, name: String): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                DB_PlayerCosmetics.deleteWhere {
+                    (DB_PlayerCosmetics.type eq type) and (DB_PlayerCosmetics.name eq name)
+                } > 0
             }
+        }.thenApply { success ->
+            invalidateAll()
             success
         }
     }

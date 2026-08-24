@@ -88,6 +88,7 @@ import org.bukkit.event.world.WorldLoadEvent
 import org.bukkit.event.world.WorldSaveEvent
 import org.bukkit.event.world.WorldUnloadEvent
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.coins.database.DB_Coins
 import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.lobby.npc.NpcBouncer
@@ -275,6 +276,8 @@ class LobbyManager {
 
         PlayerIsolationUtility.handleNewPlayerJoin(event.player)
 
+        Universum.coinsManager.loadPlayer(event.player.uniqueId)
+
         //event.joinMessage(Messages.JOIN_MSG().replace("<name>", event.player.name))
         NetworkPlayerManager.broadcastJoin(event.player.name)
         event.player.gameMode = GameMode.SPECTATOR
@@ -287,6 +290,8 @@ class LobbyManager {
 
             player.teleportAsync(loc)
         }
+
+        Universum.cosmeticManager.handleJoin(event.player)
     }
 
     fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
@@ -300,6 +305,10 @@ class LobbyManager {
         HologramPageManager.clearPlayer(event.player.uniqueId)
 
         DB_PlayerSettings.invalidateCache(event.player.uniqueId) // change after network player leave update
+
+        Universum.coinsManager.unloadPlayer(event.player.uniqueId)
+
+        Universum.cosmeticManager.handleQuit(event.player)
     }
 
     fun PLAYER_KICK_EVENT(event: PlayerKickEvent) {
@@ -345,7 +354,13 @@ class LobbyManager {
     fun ENTITY_DAMAGE_EVENT(event: EntityDamageEvent) { cancel(event) }
     fun ENTITY_DAMAGE_BY_ENTITY_EVENT(event: EntityDamageByEntityEvent) { cancel(event) }
     fun ENTITY_DEATH_EVENT(event: EntityDeathEvent) { cancel(event) }
-    fun CREATURE_SPAWN_EVENT(event: CreatureSpawnEvent) { cancel(event) }
+    fun CREATURE_SPAWN_EVENT(event: CreatureSpawnEvent) {
+        if (event.spawnReason == CreatureSpawnEvent.SpawnReason.CUSTOM ||
+            event.spawnReason == CreatureSpawnEvent.SpawnReason.COMMAND) {
+            return
+        }
+        cancel(event)
+    }
     fun ENTITY_TARGET_EVENT(event: EntityTargetEvent) { cancel(event) }
     fun ENTITY_COMBUST_EVENT(event: EntityCombustEvent) { cancel(event) }
     fun ENTITY_EXPLODE_EVENT(event: EntityExplodeEvent) { cancel(event) }

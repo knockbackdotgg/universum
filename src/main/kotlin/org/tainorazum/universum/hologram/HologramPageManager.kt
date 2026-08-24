@@ -21,6 +21,7 @@ object HologramRegistry {
             HologramStatPage("Top Wins Ranked", "wins", isRanked = true), // total
             HologramStatPage("Top Losses Ranked", "losses", isRanked = true), // total
             HologramStatPage("Top Elo Ranked", "elo", isRanked = true), // total
+            HologramStatPage("Top Coins", "coins", isRanked = true), // total
         ),
         "stats2" to listOf(
             HologramStatPage("Top Kills Unranked", "kills", isRanked = false), // total
