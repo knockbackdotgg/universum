@@ -114,6 +114,5 @@ object Messages {
     fun FRIEND_LEFT() = Component.text("<player>", Colours.GREEN).append(Component.text(" left the network.",Colours.GREY))
     fun FRIEND_REMOVE_SELF() = Component.text("You cannot unfriend yourself.", Colours.RED)
     fun PENDING_FRIEND_REQUEST_EXISTS() = Component.text("You already friend requested <player>. You may friend request them again in <time>.", Colours.YELLOW)
-
 }
 
