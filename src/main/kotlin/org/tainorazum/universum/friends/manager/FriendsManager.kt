@@ -121,7 +121,7 @@ class FriendsManager {
                     requester.sendMessage(
                         Messages.PENDING_FRIEND_REQUEST_EXISTS()
                             .replace("<player>", targetName)
-                            .replace("<expiry>", formattedExpiry)
+                            .replace("<time>", formattedExpiry)
                     )
                     requester.noSound()
                     return@thenAccept

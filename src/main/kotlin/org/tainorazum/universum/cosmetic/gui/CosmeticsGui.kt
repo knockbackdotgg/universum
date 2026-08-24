@@ -110,9 +110,9 @@ object CosmeticsGui {
 
                             if (isOwned) {
                                 val action = if (isEnabled) {
-                                    DB_PlayerCosmetics.disableCosmetic(playerUuid, cosmeticType)
+                                    Universum.cosmeticManager.disableCosmetic(player, cosmeticType)
                                 } else {
-                                    DB_PlayerCosmetics.enableCosmetic(playerUuid, cosmeticType, cosmeticEntry.name)
+                                    Universum.cosmeticManager.enableCosmetic(player, cosmeticType, cosmeticEntry.name)
                                 }
                                 action.thenAccept { openGUI(player, cosmeticType, currentPage, previous) }
                             } else {

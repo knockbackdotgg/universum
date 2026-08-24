@@ -290,6 +290,8 @@ class LobbyManager {
 
             player.teleportAsync(loc)
         }
+
+        Universum.cosmeticManager.handleJoin(event.player)
     }
 
     fun PLAYER_QUIT_EVENT(event: PlayerQuitEvent) {
@@ -305,6 +307,8 @@ class LobbyManager {
         DB_PlayerSettings.invalidateCache(event.player.uniqueId) // change after network player leave update
 
         Universum.coinsManager.unloadPlayer(event.player.uniqueId)
+
+        Universum.cosmeticManager.handleQuit(event.player)
     }
 
     fun PLAYER_KICK_EVENT(event: PlayerKickEvent) {
@@ -350,7 +354,13 @@ class LobbyManager {
     fun ENTITY_DAMAGE_EVENT(event: EntityDamageEvent) { cancel(event) }
     fun ENTITY_DAMAGE_BY_ENTITY_EVENT(event: EntityDamageByEntityEvent) { cancel(event) }
     fun ENTITY_DEATH_EVENT(event: EntityDeathEvent) { cancel(event) }
-    fun CREATURE_SPAWN_EVENT(event: CreatureSpawnEvent) { cancel(event) }
+    fun CREATURE_SPAWN_EVENT(event: CreatureSpawnEvent) {
+        if (event.spawnReason == CreatureSpawnEvent.SpawnReason.CUSTOM ||
+            event.spawnReason == CreatureSpawnEvent.SpawnReason.COMMAND) {
+            return
+        }
+        cancel(event)
+    }
     fun ENTITY_TARGET_EVENT(event: EntityTargetEvent) { cancel(event) }
     fun ENTITY_COMBUST_EVENT(event: EntityCombustEvent) { cancel(event) }
     fun ENTITY_EXPLODE_EVENT(event: EntityExplodeEvent) { cancel(event) }

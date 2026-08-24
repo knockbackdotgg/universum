@@ -1,9 +1,12 @@
 package org.tainorazum.universum.cosmetic.database
 
 import net.kyori.adventure.text.Component
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -155,11 +158,12 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
 
     /**
      * Grants ownership of a cosmetic without necessarily enabling it immediately.
+     * Uses insertIgnore to safely handle duplicate calls without throwing SQL primary key errors.
      */
     fun grantCosmetic(uuid: UUID, type: CosmeticType, name: String): CompletableFuture<Boolean> {
         return dba {
             transaction {
-                DB_PlayerCosmetics.insert {
+                DB_PlayerCosmetics.insertIgnore {
                     it[DB_PlayerCosmetics.uuid] = uuid.toString()
                     it[DB_PlayerCosmetics.type] = type
                     it[DB_PlayerCosmetics.name] = name
@@ -219,6 +223,22 @@ object DB_PlayerCosmetics : Table("player_cosmetics") {
             }
         }.thenApply { success ->
             if (success) invalidate(uuid)
+            success
+        }
+    }
+
+    /**
+     * Removes a specific cosmetic from every player in the database and flushes all caches.
+     */
+    fun revokeCosmeticFromAll(type: CosmeticType, name: String): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                DB_PlayerCosmetics.deleteWhere {
+                    (DB_PlayerCosmetics.type eq type) and (DB_PlayerCosmetics.name eq name)
+                } > 0
+            }
+        }.thenApply { success ->
+            invalidateAll()
             success
         }
     }

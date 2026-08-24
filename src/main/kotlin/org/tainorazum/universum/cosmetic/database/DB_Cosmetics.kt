@@ -39,7 +39,6 @@ object DB_Cosmetics : Table("cosmetics") {
     override val primaryKey = PrimaryKey(id)
 
     init {
-        // Essential for upsert(type, name) to work properly in SQL/Exposed
         uniqueIndex("uk_type_name", type, name)
     }
 
@@ -144,20 +143,31 @@ object DB_Cosmetics : Table("cosmetics") {
         }
     }
 
+    /**
+     * Deletes the cosmetic from the master database and revokes it from all players.
+     */
     fun deleteCosmetic(type: CosmeticType, name: String): CompletableFuture<Boolean> {
         return dba {
             transaction {
-                DB_Cosmetics.deleteWhere { (DB_Cosmetics.type eq type) and (DB_Cosmetics.name eq name) } > 0
+                // Delete ownership records for all players
+                DB_PlayerCosmetics.deleteWhere {
+                    (DB_PlayerCosmetics.type eq type) and (DB_PlayerCosmetics.name eq name)
+                }
+
+                // Delete main cosmetic definition
+                DB_Cosmetics.deleteWhere {
+                    (DB_Cosmetics.type eq type) and (DB_Cosmetics.name eq name)
+                } > 0
             }
         }.thenApply { success ->
-            if (success) invalidate(type, name)
+            if (success) {
+                invalidate(type, name)
+                DB_PlayerCosmetics.invalidateAll()
+            }
             success
         }
     }
 
-    /**
-     * Upserts an entire CosmeticEntry into the database and updates RAM cache.
-     */
     fun saveCosmetic(entry: CosmeticEntry): CompletableFuture<Boolean> {
         return dba {
             transaction {

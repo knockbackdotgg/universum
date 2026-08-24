@@ -2,6 +2,7 @@ package org.tainorazum.universum.command.admin.commands
 
 import net.kyori.adventure.text.Component
 import org.bukkit.Material
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.coins.database.DB_Coins
 import org.tainorazum.universum.command.admin.AdminCommandSub
 import org.tainorazum.universum.cosmetic.database.CosmeticEntry
@@ -51,7 +52,7 @@ class AdminCommandCoins : AdminCommandGeneral(AdminCommandSub.COINS) {
 
         PlayerUtility.getUUID(name).thenAccept { uuid ->
             if(uuid != null) {
-                DB_Coins.addCoins(uuid, amount).thenAccept { newAmount ->
+                Universum.coinsManager.addCoins(uuid, amount).thenAccept { newAmount ->
                     player.sendMessage(
                         Prefix.ADMIN()
                             .append(Prefix.ARROW3())
@@ -91,7 +92,7 @@ class AdminCommandCoins : AdminCommandGeneral(AdminCommandSub.COINS) {
 
         PlayerUtility.getUUID(name).thenAccept { uuid ->
             if(uuid != null) {
-                DB_Coins.setCoins(uuid, amount).thenAccept { success ->
+                Universum.coinsManager.setCoins(uuid, amount).thenAccept { success ->
                     if(success) {
                         player.sendMessage(
                             Prefix.ADMIN()
@@ -128,20 +129,19 @@ class AdminCommandCoins : AdminCommandGeneral(AdminCommandSub.COINS) {
         val player = actor.requirePlayer()
         PlayerUtility.getUUID(name).thenAccept { uuid ->
             if(uuid != null) {
-                DB_Coins.getCoins(uuid).thenAccept { coins ->
-                    if(coins > 0) {
-                        player.sendMessage(
-                            Prefix.ADMIN()
-                                .append(Prefix.ARROW3())
-                                .append(Component.text("$name has $coins coins.", Colours.GREY))
-                        )
-                    } else {
-                        player.sendMessage(
-                            Prefix.ADMIN()
-                                .append(Prefix.ARROW3())
-                                .append(Component.text("$name either has 0 coins or has not yet played.", Colours.GREY))
-                        )
-                    }
+                val coins = Universum.coinsManager.getCoins(uuid)
+                if(coins > 0) {
+                    player.sendMessage(
+                        Prefix.ADMIN()
+                            .append(Prefix.ARROW3())
+                            .append(Component.text("$name has $coins coins.", Colours.GREY))
+                    )
+                } else {
+                    player.sendMessage(
+                        Prefix.ADMIN()
+                            .append(Prefix.ARROW3())
+                            .append(Component.text("$name either has 0 coins or has not yet played.", Colours.GREY))
+                    )
                 }
             } else {
                 player.sendMessage(

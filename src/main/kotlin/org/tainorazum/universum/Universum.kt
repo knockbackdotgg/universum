@@ -29,6 +29,7 @@ import org.tainorazum.universum.command.universum.commands.UniversumCommandLobby
 import org.tainorazum.universum.command.universum.commands.UniversumCommandOther
 import org.tainorazum.universum.command.universum.commands.UniversumCommandServerList
 import org.tainorazum.universum.cosmetic.manager.CosmeticManager
+import org.tainorazum.universum.cosmetic.pet.PetManager
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
@@ -129,6 +130,7 @@ class Universum : JavaPlugin() {
         whitelistManager = WhitelistManager()
         playerManager = PlayerManager()
         punishmentManager = PunishmentManager()
+        PetManager.registerEvents()
         cosmeticManager = CosmeticManager()
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
