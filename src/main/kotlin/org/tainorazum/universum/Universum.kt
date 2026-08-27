@@ -11,6 +11,7 @@ import org.tainorazum.universum.coins.CoinsManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandCoins
 import org.tainorazum.universum.command.admin.commands.AdminCommandCosmetics
+import org.tainorazum.universum.command.admin.commands.AdminCommandGames
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandKits
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
@@ -211,6 +212,7 @@ class Universum : JavaPlugin() {
         lamp.register(AdminCommandKits())
         lamp.register(AdminCommandCosmetics())
         lamp.register(AdminCommandCoins())
+        lamp.register(AdminCommandGames())
 
         delay(40) {
             open().thenAccept { success ->

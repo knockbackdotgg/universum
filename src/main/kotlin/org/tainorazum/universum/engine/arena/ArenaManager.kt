@@ -19,6 +19,7 @@ class ArenaManager {
     private val activeArenas = CopyOnWriteArrayList<Arena>()
     private val availableArenas = CopyOnWriteArrayList<Arena>()
 
+    val worldName = "arenas"
     private val arenaGap: Double = 1000.0
 
     private val templateCache = ConcurrentHashMap<String, ArenaTemplate>()

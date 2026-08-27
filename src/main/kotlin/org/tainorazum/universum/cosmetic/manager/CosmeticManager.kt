@@ -73,7 +73,7 @@ class CosmeticManager {
                     PetManager.spawnPet(player, data)
                 } else {
                     if (data == null) {
-                        Universum.instance.logger.warning("No pet found in DB for ${player.name}")
+                        //Universum.instance.logger.warning("No pet found in DB for ${player.name}")
                     }
                     PetManager.despawnPet(player.uniqueId)
                 }

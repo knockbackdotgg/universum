@@ -30,6 +30,7 @@ enum class Permission(
     CMD_ADMIN_KITS(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_COSMETICS(listOf(Allowed.OWNER, Allowed.ADMIN)),
     CMD_ADMIN_COINS(listOf(Allowed.OWNER, Allowed.ADMIN)),
+    CMD_ADMIN_GAMES(listOf(Allowed.OWNER, Allowed.ADMIN)),
 
     ;
 

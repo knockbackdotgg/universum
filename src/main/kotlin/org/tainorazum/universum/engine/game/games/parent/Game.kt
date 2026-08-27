@@ -116,7 +116,7 @@ open class Game(
     // pre-game management
     //
 
-    fun readyCheck() : Boolean {
+    fun check() : Boolean {
         val players = getPlayers()
         val uuids = getUUIDs()
 
@@ -146,6 +146,9 @@ open class Game(
     // game & round start
     fun start() {
         gameState(GameState.STARTING)
+
+
+
     }
 
     // round stop
