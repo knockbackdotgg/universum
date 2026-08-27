@@ -10,6 +10,7 @@ import org.tainorazum.universum.engine.game.games.event.GameEvents
 import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.game.manager.fields.GameSpectator
+import org.tainorazum.universum.engine.game.manager.fields.GameState
 import org.tainorazum.universum.engine.game.manager.fields.GameTeam
 import org.tainorazum.universum.utility.player.PlayerUtility
 import java.util.UUID
@@ -24,7 +25,10 @@ open class Game(
 
 ) : GameEvents() {
 
-    val spectators = mutableListOf<GameSpectator>()
+    private var currentRound: Int = 1
+    private var gameState: GameState = GameState.STARTING
+
+    private val spectators = mutableListOf<GameSpectator>()
 
     init {
         prepare()
@@ -52,6 +56,8 @@ open class Game(
 
     override fun onPlayerJoin(event: PlayerJoinEvent) {
         PlayerUtility.reset(event.player, GameMode.SPECTATOR)
+
+
 
         //PlayerUtility.blackout()
 
@@ -121,6 +127,14 @@ open class Game(
         return ready
     }
 
+    // game state management
+
+    fun gameState(new: GameState) {
+        gameState = new
+    }
+
+    fun gameState() = gameState
+
     //
     // game management
     //
@@ -129,16 +143,19 @@ open class Game(
         arena.reset()
     }
 
+    // game & round start
     fun start() {
-
+        gameState(GameState.STARTING)
     }
 
-    fun end() {
-
-    }
-
+    // round stop
     fun stop() {
+        gameState(GameState.STOPPING)
+    }
 
+    // game stop
+    fun end() {
+        gameState(GameState.ENDING)
     }
 
 }

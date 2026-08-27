@@ -63,18 +63,18 @@ class ArenaManager {
         return future
     }
 
-    fun retrieveArena(templateId: String): CompletableFuture<Arena?> {
+    fun retrieveArena(identifier: String): CompletableFuture<Arena?> {
         val future = CompletableFuture<Arena?>()
 
-        val available = availableArenas.firstOrNull { it.templateIdentifier == templateId }
+        val available = availableArenas.firstOrNull { it.templateIdentifier == identifier }
         if (available != null) {
             availableArenas.remove(available)
             future.complete(available)
             return future
         }
 
-        val instanceId = generateNextId(templateId)
-        createArenaInstance(instanceId, templateId).thenAccept { arena ->
+        val instanceId = generateNextId(identifier)
+        createArenaInstance(instanceId, identifier).thenAccept { arena ->
             future.complete(arena)
         }
 

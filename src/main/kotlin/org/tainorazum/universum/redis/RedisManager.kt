@@ -83,6 +83,11 @@ object RedisManager {
         return activeConn.async().del(key).thenApply { it.toLong() }.toCompletableFuture()
     }
 
+    fun getdel(key: String): CompletableFuture<String?> {
+        val activeConn = connection() ?: return CompletableFuture.completedFuture(null)
+        return activeConn.async().getdel(key).toCompletableFuture()
+    }
+
     fun publish(channel: String, message: String): CompletableFuture<Long> {
         val activeConn = connection() ?: return CompletableFuture.completedFuture(0L)
         return activeConn.async().publish(channel, message).thenApply { it.toLong() }.toCompletableFuture()
