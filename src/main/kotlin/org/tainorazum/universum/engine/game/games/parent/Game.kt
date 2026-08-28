@@ -1,10 +1,12 @@
 package org.tainorazum.universum.engine.game.games.parent
 
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerJoinEvent
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.arena.Arena
 import org.tainorazum.universum.engine.game.games.event.GameEvents
 import org.tainorazum.universum.engine.game.manager.fields.GameType
@@ -12,7 +14,10 @@ import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.game.manager.fields.GameSpectator
 import org.tainorazum.universum.engine.game.manager.fields.GameState
 import org.tainorazum.universum.engine.game.manager.fields.GameTeam
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.player.PlayerUtility
+import org.tainorazum.universum.utility.text.Colours
+import org.tainorazum.universum.utility.text.Text
 import java.util.UUID
 
 open class Game(
@@ -55,11 +60,18 @@ open class Game(
     //
 
     override fun onPlayerJoin(event: PlayerJoinEvent) {
-        PlayerUtility.reset(event.player, GameMode.SPECTATOR)
+        val p = event.player
 
+        PlayerUtility.reset(p, GameMode.SPECTATOR)
+        PlayerUtility.blackout(
+            p,
+            Int.MAX_VALUE,
+            50,
+            Text.toSmallTextComponent("please wait for the game to start", Colours.YELLOW),
+            Component.text("...", Colours.GREY)
+        )
 
-
-        //PlayerUtility.blackout()
+        check()
 
     }
 
@@ -140,12 +152,27 @@ open class Game(
     //
 
     fun prepare() {
-        arena.reset()
+        arena.reset().thenAccept { success ->
+            if(success) {
+
+               getUUIDs().forEach { uuid ->
+                   NetworkPlayerManager.sendPlayer(uuid, Universum.server.identifier)
+               }
+
+            } else {
+                end()
+            }
+        }
     }
 
     // game & round start
     fun start() {
         gameState(GameState.STARTING)
+
+        getPlayers().forEach { player ->
+            PlayerUtility.stopBlackout(player)
+
+        }
 
 
 

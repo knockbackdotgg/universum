@@ -18,6 +18,7 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import org.bukkit.scheduler.BukkitTask
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.AxisAngle4f
@@ -125,19 +126,53 @@ object PlayerUtility {
     // Blackout (Display Entity Driven)
     // =========================================================================
 
+// =========================================================================
+    // Blackout (Display Entity Driven)
+    // =========================================================================
+
     private data class BlackoutSession(
         val originalMode: GameMode,
         val cameraEntity: ArmorStand,
         val displayEntity: BlockDisplay,
-        val originalWalkSpeed: Float
+        val originalWalkSpeed: Float,
+        val originalFlySpeed: Float,
+        val originalLocation: Location,
+        val lockTask: BukkitTask,
+        val autoStopTask: BukkitTask,
+        val hiddenPlayerUuids: MutableSet<UUID>
     )
 
     private val activeSessions = ConcurrentHashMap<UUID, BlackoutSession>()
 
+    fun handlePlayerJoin(joinedPlayer: Player) {
+        if (activeSessions.isEmpty()) return
+
+        for ((blackoutUuid, session) in activeSessions) {
+            val blackoutPlayer = Bukkit.getPlayer(blackoutUuid) ?: continue
+            if (joinedPlayer.uniqueId != blackoutUuid) {
+                blackoutPlayer.hidePlayer(Universum.instance, joinedPlayer)
+                joinedPlayer.hidePlayer(Universum.instance, blackoutPlayer)
+                session.hiddenPlayerUuids.add(joinedPlayer.uniqueId)
+            }
+        }
+    }
+
+    fun handlePlayerQuit(quittingPlayer: Player) {
+        // If the quitting player is currently in a blackout, clean up their session
+        if (activeSessions.containsKey(quittingPlayer.uniqueId)) {
+            stopBlackout(quittingPlayer)
+        }
+
+        // Remove the quitting player from all active hidden sets
+        activeSessions.values.forEach { session ->
+            session.hiddenPlayerUuids.remove(quittingPlayer.uniqueId)
+        }
+    }
+
     fun blackout(
         player: Player,
         durationMs: Int,
-        fadeOutMs: Int,
+        fadeOutMs: Int = 500,
         title: Component = Component.empty(),
         subTitle: Component = Component.empty()
     ) {
@@ -147,22 +182,32 @@ object PlayerUtility {
 
         val originalMode = player.gameMode
         val originalWalkSpeed = player.walkSpeed
+        val originalFlySpeed = player.flySpeed
         val originalLoc = player.location.clone()
 
-        // 1. Anchor location far away in dark bounds
-        val anchorLoc = Location(originalLoc.world, originalLoc.x, 310.0, originalLoc.z)
+        // 1. Thread-safe set for dynamically added/removed players
+        val hiddenUuids = ConcurrentHashMap.newKeySet<UUID>()
+        for (other in Bukkit.getOnlinePlayers()) {
+            if (other.uniqueId != player.uniqueId) {
+                player.hidePlayer(Universum.instance, other)
+                other.hidePlayer(Universum.instance, player)
+                hiddenUuids.add(other.uniqueId)
+            }
+        }
 
-        // 2. Spawn invisible camera stand
+        // 2. Anchor location far away in dark bounds facing forward (0 pitch, 0 yaw)
+        val anchorLoc = Location(originalLoc.world, originalLoc.x, 310.0, originalLoc.z, 0f, 0f)
+
+        // 3. Spawn invisible camera stand
         val cameraEntity = anchorLoc.world.spawnEntity(anchorLoc, EntityType.ARMOR_STAND) as ArmorStand
         cameraEntity.isInvisible = true
         cameraEntity.isMarker = true
         cameraEntity.setGravity(false)
 
-        // 3. Spawn a scaled BlockDisplay engulfing the camera with forced 0 light
+        // 4. Spawn a scaled BlockDisplay engulfing the camera with forced 0 light (Matte Black)
         val displayEntity = anchorLoc.world.spawn(anchorLoc.clone().add(0.0, 1.0, 0.0), BlockDisplay::class.java) { display ->
             display.block = Material.BLACK_CONCRETE.createBlockData()
 
-            // Scale 6x6x6 box offset so camera head sits dead-center inside it
             display.transformation = Transformation(
                 Vector3f(-3f, -3f, -3f),
                 AxisAngle4f(0f, 0f, 0f, 1f),
@@ -170,22 +215,26 @@ object PlayerUtility {
                 AxisAngle4f(0f, 0f, 0f, 1f)
             )
 
-            // Force block light = 0, sky light = 0 (Pitch Black Rendering)
             display.brightness = Display.Brightness(0, 0)
         }
 
-        activeSessions[player.uniqueId] = BlackoutSession(originalMode, cameraEntity, displayEntity, originalWalkSpeed)
-
-        // 4. Lock movement and apply state changes
-        val effectTicks = (durationMs / 50) + 20
+        // 5. Freeze movement speeds and apply potion effects
+        val effectTicks = (durationMs / 50) + 40
         player.walkSpeed = 0f
+        player.flySpeed = 0f
         player.addPotionEffect(PotionEffect(PotionEffectType.BLINDNESS, effectTicks, 255, false, false, false))
         player.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, effectTicks, 255, false, false, false))
 
         setClientGamemode(player, GameMode.SPECTATOR)
         setCamera(player, cameraEntity.entityId)
 
-        // 5. Send Title Overlay
+        // 6. Lock player position & view rotation every tick
+        val lockTask = Universum.instance.server.scheduler.runTaskTimer(Universum.instance, Runnable {
+            if (!player.isOnline) return@Runnable
+            player.teleport(anchorLoc)
+        }, 0L, 1L)
+
+        // 7. Send Title Overlay
         val times = Title.Times.times(
             Duration.ZERO,
             Duration.ofMillis(durationMs.toLong()),
@@ -193,22 +242,46 @@ object PlayerUtility {
         )
         player.showTitle(Title.title(title, subTitle, times))
 
-        // 6. Schedule Cleanup
+        // 8. Schedule Auto-Cleanup
         val durationTicks = (durationMs / 50).coerceAtLeast(1).toLong()
-        Universum.instance.server.scheduler.runTaskLater(Universum.instance, Runnable {
+        val autoStopTask = Universum.instance.server.scheduler.runTaskLater(Universum.instance, Runnable {
             stopBlackout(player)
         }, durationTicks)
+
+        activeSessions[player.uniqueId] = BlackoutSession(
+            originalMode = originalMode,
+            cameraEntity = cameraEntity,
+            displayEntity = displayEntity,
+            originalWalkSpeed = originalWalkSpeed,
+            originalFlySpeed = originalFlySpeed,
+            originalLocation = originalLoc,
+            lockTask = lockTask,
+            autoStopTask = autoStopTask,
+            hiddenPlayerUuids = hiddenUuids
+        )
     }
 
     fun stopBlackout(player: Player) {
         val session = activeSessions.remove(player.uniqueId) ?: return
 
-        // Restore camera and game mode
+        session.lockTask.cancel()
+        session.autoStopTask.cancel()
+
+        for (uuid in session.hiddenPlayerUuids) {
+            val other = Bukkit.getPlayer(uuid)
+            if (other != null && other.isOnline) {
+                player.showPlayer(Universum.instance, other)
+                other.showPlayer(Universum.instance, player)
+            }
+        }
+
         setCamera(player, player.entityId)
         setClientGamemode(player, session.originalMode)
         player.walkSpeed = session.originalWalkSpeed
+        player.flySpeed = session.originalFlySpeed
+        player.teleport(session.originalLocation)
 
-        // Remove potion effects and entities
+        player.clearTitle()
         player.removePotionEffect(PotionEffectType.BLINDNESS)
         player.removePotionEffect(PotionEffectType.SLOWNESS)
 
