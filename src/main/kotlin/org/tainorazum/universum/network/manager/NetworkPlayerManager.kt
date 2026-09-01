@@ -2,6 +2,7 @@ package org.tainorazum.universum.network.manager
 
 import com.google.gson.Gson
 import gg.flyte.twilight.event.event
+import gg.flyte.twilight.gson.toJson
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.bukkit.Bukkit
@@ -22,11 +23,17 @@ import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 data class ServerMessage(
     val uuid: UUID, // target
     val jsonComponent: String
+)
+
+data class PlayerSendPayload(
+    val uuid: String,
+    val targetServer: String
 )
 
 object NetworkPlayerManager {
@@ -36,6 +43,7 @@ object NetworkPlayerManager {
     const val CHANNEL = "network_player_events"
 
     val onlinePlayers = ConcurrentHashMap<UUID, NetworkPlayer>()
+    const val PLAYER_SEND_CHANNEL = "velocity_player_send"
 
     init {
         event<PlayerJoinEvent>(priority = EventPriority.LOW) {
@@ -80,10 +88,14 @@ object NetworkPlayerManager {
         PlayerUtility.cachePlayer(player.uniqueId, player.name)
         DB_Punishments.getPunishments(player.uniqueId)
         DB_PlayerCosmetics.getPlayerCosmetics(player.uniqueId).thenApply { }
+
+        PlayerUtility.handlePlayerJoin(player)
+
+        handleTrueNetworkJoin(player.uniqueId)
     }
 
     fun handleLocalQuit(player: Player, serverName: String) {
-        // Local quit logic if needed
+        PlayerUtility.handlePlayerQuit(player)
     }
 
     fun handleTrueNetworkQuit(uuid: UUID) {
@@ -112,10 +124,7 @@ object NetworkPlayerManager {
 
     fun handleRemoteEvent(event: NetworkPlayerEvent) {
         when (event.type) {
-            NetworkPlayerEvent.Type.JOIN -> {
-                onlinePlayers[event.player.uuid] = event.player
-                handleTrueNetworkJoin(event.player.uuid)
-            }
+            NetworkPlayerEvent.Type.JOIN -> onlinePlayers[event.player.uuid] = event.player
             NetworkPlayerEvent.Type.QUIT,
             NetworkPlayerEvent.Type.BANNED,
             NetworkPlayerEvent.Type.MUTED,
@@ -136,6 +145,14 @@ object NetworkPlayerManager {
         val chatMessage = ChatMessage(null, jsonComponent, Universum.server)
 
         RedisManager.publish("chat_message", gson.toJson(chatMessage))
+    }
+
+    fun sendPlayer(playerUuid: UUID, targetServer: String) {
+        val payload = PlayerSendPayload(
+            uuid = playerUuid.toString(),
+            targetServer = targetServer
+        )
+        RedisManager.publish(PLAYER_SEND_CHANNEL, gson.toJson(payload))
     }
 
     fun attemptServerMessage(uuid: UUID, message: Component) {

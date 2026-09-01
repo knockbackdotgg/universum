@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture
 object DB_Kits : Table("kits") {
     private const val DEFAULT_OWNER_MARKER = "_"
 
-    val id = varchar("id", 100)
+    val id = varchar("id", 100).uniqueIndex()
     val name = text("name") // frontend visual component
     val ownerUuid = varchar("owner_uuid", 36).default(DEFAULT_OWNER_MARKER)
     val material = text("material").default(Material.PAPER.name)

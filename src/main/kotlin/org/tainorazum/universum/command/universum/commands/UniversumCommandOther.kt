@@ -1,8 +1,16 @@
 package org.tainorazum.universum.command.universum.commands
 
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
+import org.bukkit.entity.Player
+import org.bukkit.scoreboard.Team
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.command.universum.UniversumCommandSub
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.tainorazum.universum.engine.game.manager.fields.GameRequest
+import org.tainorazum.universum.engine.game.manager.fields.GameSettings
+import org.tainorazum.universum.engine.game.manager.fields.GameTeam
+import org.tainorazum.universum.engine.game.manager.fields.GameType
+import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisManager
@@ -15,6 +23,7 @@ import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
 import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
+import java.util.concurrent.CompletableFuture
 
 @Command("universum", "uni", "u")
 class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER) {
@@ -24,8 +33,48 @@ class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER)
         Pair("/universum other blackout <duration> <fadeOut> <title> <subTitle>", " Give yourself a temporary screen blackout (feature test)."),
         Pair("/universum other statistic <id> <gameType> <ranked> <value>", "Set ayour own statistics in order to test."),
         Pair("/universum other statistic <id> <gameType> <ranked> <value> <player>", "Set a player's statistics in order to test."),
-        Pair("/universum other playerCount reset", "Reset Redis' player count.")
+        Pair("/universum other playerCount reset", "Reset Redis' player count."),
+        Pair("/universum other game request <player1> <player2> <gameType> <kit> <map> <rounds> <isRanked> <canModifyBlocks", "Force request a game.")
     )
+
+    @Subcommand("other game request")
+    fun gameRequest(
+        actor: BukkitCommandActor,
+        player1: Player,
+        player2: Player,
+        type: GameType,
+        kit: Kit,
+        @Suggest("<map>")map: String,
+        @Suggest("1", "3", "5", "10")rounds: Int,
+        @Suggest("true", "false")isRanked: Boolean,
+        @Suggest("true", "false")canModifyBlocks: Boolean,
+        @Suggest("true", "false")canModifyMap: Boolean,
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_OTHER) {
+
+        if(!player1.isOnline || !player2.isOnline) {
+            actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("One of or both of the supplied players are not online on this server.", Colours.RED)))
+            return@guard
+        }
+
+        val settings = GameSettings(
+            kit, rounds, isRanked, canModifyBlocks, canModifyMap,
+        )
+
+        val teams = listOf(
+            GameTeam("1", mutableListOf(player1.uniqueId)),
+            GameTeam("2", mutableListOf(player2.uniqueId))
+        )
+
+        val request = GameRequest(
+            gameType = type,
+            gameSettings = settings,
+            teams = teams,
+            arenaName = map
+        )
+
+        Universum.gameManager.requestGame(request)
+
+    }
 
     @Subcommand("other playerCount reset")
     fun playerCount(

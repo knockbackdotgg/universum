@@ -11,16 +11,15 @@ import org.tainorazum.universum.coins.CoinsManager
 import org.tainorazum.universum.command.admin.commands.AdminCommandBypass
 import org.tainorazum.universum.command.admin.commands.AdminCommandCoins
 import org.tainorazum.universum.command.admin.commands.AdminCommandCosmetics
+import org.tainorazum.universum.command.admin.commands.AdminCommandGames
 import org.tainorazum.universum.command.admin.commands.AdminCommandGeneral
 import org.tainorazum.universum.command.admin.commands.AdminCommandKits
 import org.tainorazum.universum.command.admin.commands.AdminCommandPunishments
 import org.tainorazum.universum.command.admin.commands.AdminCommandWhitelist
 import org.tainorazum.universum.command.default.CosmeticsCommand
 import org.tainorazum.universum.command.default.CycleHoloCommand
-import org.tainorazum.universum.command.default.Friends
 import org.tainorazum.universum.command.default.FriendsCommand
 import org.tainorazum.universum.command.default.KitEditorCommand
-import org.tainorazum.universum.command.default.NetworkPlayers
 import org.tainorazum.universum.command.default.SettingsCommand
 import org.tainorazum.universum.command.universum.commands.UniversumCommandDatabase
 import org.tainorazum.universum.command.universum.commands.UniversumCommandGeneral
@@ -33,9 +32,8 @@ import org.tainorazum.universum.cosmetic.pet.PetManager
 import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
-import org.tainorazum.universum.engine.game.GameManager
+import org.tainorazum.universum.engine.game.manager.GameManager
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
-import org.tainorazum.universum.friends.database.DB_Friends
 import org.tainorazum.universum.friends.manager.FriendsManager
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.kiteditor.editor.KitEditorManager
@@ -61,7 +59,6 @@ import org.tainorazum.universum.utility.gui.AnvilInput
 import org.tainorazum.universum.utility.other.parseDuration
 import org.tainorazum.universum.whitelist.WhitelistManager
 import revxrsal.commands.bukkit.BukkitLamp
-import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.logging.Level
@@ -215,6 +212,7 @@ class Universum : JavaPlugin() {
         lamp.register(AdminCommandKits())
         lamp.register(AdminCommandCosmetics())
         lamp.register(AdminCommandCoins())
+        lamp.register(AdminCommandGames())
 
         delay(40) {
             open().thenAccept { success ->

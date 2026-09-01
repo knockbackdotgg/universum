@@ -16,6 +16,7 @@ import org.tainorazum.universum.redis.listeners.network.RM_PrivateMessage
 import org.tainorazum.universum.redis.listeners.network.RM_ServerMessage
 import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerDisconnect
 import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerSwitch
+import org.tainorazum.universum.server.server.ServerType
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
 
@@ -88,7 +89,9 @@ object RedisSubscriber {
 
     private fun registerListeners() {
         // games
-        RM_GameRequest()
+        if(Universum.server.type == ServerType.GAME) {
+            RM_GameRequest()
+        }
 
         // friends
         RM_FriendAccept()

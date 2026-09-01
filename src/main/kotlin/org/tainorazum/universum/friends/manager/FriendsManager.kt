@@ -283,6 +283,7 @@ class FriendsManager {
                     if (value.lowercase() == "yes") {
                         PlayerUtility.getName(uuid).thenAccept { name ->
                             if (name != null) {
+
                                 NetworkPlayerManager.attemptServerMessage(
                                     friend,
                                     Prefix.FRIEND().append(Prefix.ARROW3()).append(Messages.FRIEND_LEFT().replace("<player>", name))

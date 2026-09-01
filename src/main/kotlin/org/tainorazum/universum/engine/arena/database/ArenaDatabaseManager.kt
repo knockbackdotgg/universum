@@ -1,18 +1,28 @@
 package org.tainorazum.universum.engine.arena.database
 
+import com.sk89q.worldedit.WorldEdit
+import com.sk89q.worldedit.bukkit.BukkitAdapter
+import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.entity.Player
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
-import org.tainorazum.universum.engine.game.gametypes.GameType
+import org.jetbrains.exposed.sql.update
+import org.tainorazum.universum.Universum
+import org.tainorazum.universum.engine.arena.database.DB_Arenas.schematic
+import org.tainorazum.universum.engine.game.manager.fields.GameType
+import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.utility.text.ComponentSerializer
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.map
@@ -41,6 +51,36 @@ data class ArenaTemplate(
 }
 
 class ArenaDatabaseManager {
+
+    fun createArena(arenaId: String): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    val exists = DB_Arenas.selectAll()
+                        .where { DB_Arenas.identifier eq arenaId }
+                        .limit(1)
+                        .firstOrNull() != null
+
+                    if (!exists) {
+                        DB_Arenas.insert {
+                            it[identifier] = arenaId
+                            it[name] = ComponentSerializer.serialize(Component.text(arenaId))
+                            it[description] = ComponentSerializer.serialize(Component.text("No description set."))
+                            it[schematic] = ExposedBlob(ByteArray(0))
+                            it[centerLocation] = Location(Bukkit.getWorld(Universum.arenaManager.worldName), 0.5, 100.0, 0.5, 0f, 0f).toSerializedString()
+                            it[radius] = 20.0
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
 
     fun saveArena(
         arenaId: String,
@@ -155,6 +195,51 @@ class ArenaDatabaseManager {
         }
     }
 
+    fun setArenaLocation(arenaId: String, locationKey: String, location: Location): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    val exists = DB_ArenaLocations.selectAll()
+                        .where { (DB_ArenaLocations.identifier eq arenaId) and (DB_ArenaLocations.locationKey eq locationKey) }
+                        .limit(1)
+                        .firstOrNull() != null
+
+                    if (exists) {
+                        DB_ArenaLocations.update({ (DB_ArenaLocations.identifier eq arenaId) and (DB_ArenaLocations.locationKey eq locationKey) }) {
+                            it[locationData] = location.toSerializedString()
+                        }
+                    } else {
+                        DB_ArenaLocations.insert {
+                            it[identifier] = arenaId
+                            it[DB_ArenaLocations.locationKey] = locationKey
+                            it[locationData] = location.toSerializedString()
+                        }
+                    }
+                }
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
+    fun removeArenaLocation(arenaId: String, locationKey: String): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    DB_ArenaLocations.deleteWhere {
+                        (DB_ArenaLocations.identifier eq arenaId) and (DB_ArenaLocations.locationKey eq locationKey)
+                    }
+                }
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
     fun getArenaLocations(arenaId: String): CompletableFuture<Map<String, Location>> {
         return dba {
             val locationsMap = mutableMapOf<String, Location>()
@@ -193,6 +278,43 @@ class ArenaDatabaseManager {
         val pitch = parts.getOrNull(5)?.toFloatOrNull() ?: 0f
 
         return Location(world, x, y, z, yaw, pitch)
+    }
+
+    // schematic
+
+    fun updateSchematic(arenaId: String, bytes: ByteArray): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    DB_Arenas.update({ DB_Arenas.identifier eq arenaId }) {
+                        it[schematic] = ExposedBlob(bytes)
+                    }
+                }
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
+    fun saveClipboardToArena(player: Player, arenaId: String): CompletableFuture<Boolean> {
+        return try {
+            val actor = BukkitAdapter.adapt(player)
+            val session = WorldEdit.getInstance().sessionManager.get(actor)
+            val holder = session.clipboard ?: return CompletableFuture.completedFuture(false)
+            val clipboard = holder.clipboard
+
+            val baos = ByteArrayOutputStream()
+            BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(baos).use { writer ->
+                writer.write(clipboard)
+            }
+
+            updateSchematic(arenaId, baos.toByteArray())
+        } catch (e: Exception) {
+            e.printStackTrace()
+            CompletableFuture.completedFuture(false)
+        }
     }
 
     // allowed gametypes management
@@ -279,6 +401,14 @@ class ArenaDatabaseManager {
         return dba {
             try {
                 transaction {
+                    // Verify the kit exists in db_kits to satisfy foreign key constraint
+                    val kitExists = DB_Kits.selectAll()
+                        .where { DB_Kits.id.lowerCase() eq kitId.lowercase() }
+                        .limit(1)
+                        .firstOrNull() != null
+
+                    if (!kitExists) return@transaction false
+
                     val exists = DB_ArenaKits.selectAll()
                         .where { (DB_ArenaKits.arenaId eq arenaId) and (DB_ArenaKits.kitId eq kitId) }
                         .limit(1)
@@ -290,8 +420,8 @@ class ArenaDatabaseManager {
                             it[DB_ArenaKits.kitId] = kitId
                         }
                     }
+                    true
                 }
-                true
             } catch (e: Exception) {
                 e.printStackTrace()
                 false

@@ -169,6 +169,25 @@ object CosmeticsGui {
                 loreList.add(previewComponent)
                 hasPreview = true
             }
+            is CosmeticData.Pet -> {
+                val baseName = data.entityType.name
+                    .lowercase()
+                    .split('_')
+                    .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
+
+                val formattedName = if (data.isBaby && !baseName.startsWith("Baby", ignoreCase = true)) {
+                    "Baby $baseName"
+                } else {
+                    baseName
+                }
+
+                val previewComponent = Component.text("Type: ", Colours.GREY)
+                    .append(Component.text(formattedName, Colours.GREEN))
+                    .norm()
+
+                loreList.add(previewComponent)
+                hasPreview = true
+            }
             else -> {}
         }
 
