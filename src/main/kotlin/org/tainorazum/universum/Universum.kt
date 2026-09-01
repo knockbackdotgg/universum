@@ -161,7 +161,6 @@ class Universum : JavaPlugin() {
                     val text = input.readString()
                     parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
                 }
-                // Kit resolver
                 types.addParameterType(Kit::class.java) { input, _ ->
                     val kitId = input.readString()
                     DB_Kits.getKit(kitId).join()
