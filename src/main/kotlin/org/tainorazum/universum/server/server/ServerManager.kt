@@ -59,7 +59,8 @@ class ServerManager {
             val type = ServerType.valueOf(Universum.instance.config.getString("server.type")!!)
 
             Universum.server = Server(identifier, type)
-            DB_Server.register(identifier, type)
+            DB_Server.register(identifier, type).join()
+            DB_Server.preloadPublic(identifier).join()
         } catch (e: Exception) {
             Universum.instance.logger.log(Level.SEVERE, "Could not register server! Disabling plugin...", e)
             Universum.instance.server.pluginManager.disablePlugin(Universum.instance)

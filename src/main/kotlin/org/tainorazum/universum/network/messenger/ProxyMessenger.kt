@@ -1,6 +1,7 @@
 package org.tainorazum.universum.network.messenger
 
 import com.google.gson.Gson
+import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisManager
 import java.util.UUID
 
@@ -13,6 +14,6 @@ object ProxyMessenger {
             "uuid" to playerUuid.toString(),
             "targetServer" to targetServer
         )
-        RedisManager.publish("velocity_send_player", gson.toJson(payload))
+        RedisManager.publish(NetworkPlayerManager.PLAYER_SEND_CHANNEL, gson.toJson(payload))
     }
 }

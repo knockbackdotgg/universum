@@ -11,6 +11,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.count
@@ -27,6 +28,8 @@ object DB_Server : Table("servers") {
     @Volatile
     private var cachedPublic: Boolean? = null
 
+    fun currentPublic(): Boolean? = cachedPublic
+
     fun register(id: String, type: ServerType): CompletableFuture<Boolean> {
         return dba {
             transaction {
@@ -39,6 +42,25 @@ object DB_Server : Table("servers") {
                 }
                 true
             }
+        }.thenApply { success ->
+            if (success) {
+                cachedPublic = null
+            }
+            success
+        }
+    }
+
+    fun preloadPublic(id: String): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                DB_Server.selectAll()
+                    .where { DB_Server.identifier eq id }
+                    .map { it[public] }
+                    .singleOrNull() ?: false
+            }
+        }.thenApply { value ->
+            cachedPublic = value
+            value
         }
     }
 
@@ -56,6 +78,11 @@ object DB_Server : Table("servers") {
                 }
                 true
             }
+        }.thenApply { success ->
+            if (success) {
+                cachedPublic = public
+            }
+            success
         }
     }
 
@@ -112,28 +139,25 @@ object DB_Server : Table("servers") {
                     true
                 } else {
                     DB_Server.insert {
+                        it[identifier] = id
+                        it[type] = Universum.server.type.name
                         it[public] = bool
+                        it[online] = true
                     }
                     true
                 }
             }
+        }.thenApply { success ->
+            if (success) {
+                cachedPublic = bool
+            }
+            success
         }
     }
 
     fun getPublic(id: String): CompletableFuture<Boolean> {
         cachedPublic?.let { return CompletableFuture.completedFuture(it) }
-        return dba {
-            transaction {
-                DB_Server.selectAll()
-                    .where {
-                        identifier eq id
-                    }
-                    .map {
-                        it[public]
-                    }
-                    .singleOrNull() ?: false
-            }
-        }
+        return preloadPublic(id)
     }
 
 }

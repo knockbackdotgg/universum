@@ -43,6 +43,7 @@ object NetworkPlayerManager {
     const val CHANNEL = "network_player_events"
 
     val onlinePlayers = ConcurrentHashMap<UUID, NetworkPlayer>()
+    const val PLAYER_SEND_CHANNEL = "velocity_player_send"
 
     init {
         event<PlayerJoinEvent>(priority = EventPriority.LOW) {
@@ -151,7 +152,7 @@ object NetworkPlayerManager {
             uuid = playerUuid.toString(),
             targetServer = targetServer
         )
-        RedisManager.publish("velocity_player_send", gson.toJson(payload))
+        RedisManager.publish(PLAYER_SEND_CHANNEL, gson.toJson(payload))
     }
 
     fun attemptServerMessage(uuid: UUID, message: Component) {

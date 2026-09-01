@@ -236,17 +236,13 @@ class LobbyManager {
                 "ALLOWED" -> {
                     event.loginResult = AsyncPlayerPreLoginEvent.Result.ALLOWED
 
-                    try {
-                        Universum.playerSettingManager.cacheSettings(event.uniqueId).get()
-                    } catch (e: Exception) {
-                        val cause = e.cause ?: e
-                        Universum.instance.logger.severe("Failed to cache settings for ${event.uniqueId}: ${cause.message}")
-
-                        event.disallow(
-                            AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
-                            Messages.SETTINGS_INVALID_MSG()
-                        )
-                    }
+                    Universum.playerSettingManager.cacheSettings(event.uniqueId)
+                        .whenComplete { _, throwable ->
+                            if (throwable != null) {
+                                val cause = throwable.cause ?: throwable
+                                Universum.instance.logger.warning("Failed to cache settings for ${event.uniqueId}: ${cause.message}")
+                            }
+                        }
                 }
                 "WHITELISTED" -> event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, Messages.WHITELIST_MSG())
                 "BANNED" -> {
