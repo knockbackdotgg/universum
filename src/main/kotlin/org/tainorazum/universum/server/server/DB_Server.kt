@@ -33,7 +33,7 @@ object DB_Server : Table("servers") {
     fun register(id: String, type: ServerType): CompletableFuture<Boolean> {
         return dba {
             transaction {
-                DB_Server.upsert(DB_Server.identifier) {
+                DB_Server.upsert {
                     it[DB_Server.identifier] = id
                     it[DB_Server.type] = type.name
 

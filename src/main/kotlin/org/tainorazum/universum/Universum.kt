@@ -33,6 +33,8 @@ import org.tainorazum.universum.database.DatabaseManager
 import org.tainorazum.universum.engine.arena.ArenaManager
 import org.tainorazum.universum.engine.arena.database.ArenaDatabaseManager
 import org.tainorazum.universum.engine.game.manager.GameManager
+import org.tainorazum.universum.engine.kit.Kit
+import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.friends.manager.FriendsManager
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
@@ -154,9 +156,21 @@ class Universum : JavaPlugin() {
         // 4. Register Commands & Features
         val lamp = BukkitLamp.builder(this)
             .parameterTypes { types ->
+                // Duration resolver
                 types.addParameterType(Duration::class.java) { input, _ ->
                     val text = input.readString()
                     parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+                }
+                // Kit resolver
+                types.addParameterType(Kit::class.java) { input, _ ->
+                    val kitId = input.readString()
+                    DB_Kits.getKit(kitId).join()
+                        ?: throw IllegalArgumentException("Kit '$kitId' does not exist!")
+                }
+            }
+            .suggestionProviders { providers ->
+                providers.addProvider(Kit::class.java) { context ->
+                    DB_Kits.getAllDefaultKits().join().map { it.id }
                 }
             }
             .build()
