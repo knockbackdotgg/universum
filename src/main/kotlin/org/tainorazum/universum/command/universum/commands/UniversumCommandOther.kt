@@ -45,10 +45,10 @@ class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER)
         type: GameType,
         kit: Kit,
         @Suggest("<map>")map: String,
-        @Suggest("1", "3", "5", "10")rounds: Int,
-        @Suggest("true", "false")isRanked: Boolean,
-        @Suggest("true", "false")canModifyBlocks: Boolean,
-        @Suggest("true", "false")canModifyMap: Boolean,
+        @Suggest("<rounds>", "1", "3", "5", "10")rounds: Int,
+        @Suggest("<isRanked>", "true", "false")isRanked: Boolean,
+        @Suggest("<canModifyBlocks>", "true", "false")canModifyBlocks: Boolean,
+        @Suggest("<canModifyMap>", "true", "false")canModifyMap: Boolean,
     ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_OTHER) {
 
         if(!player1.isOnline || !player2.isOnline) {
