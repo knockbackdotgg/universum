@@ -43,6 +43,7 @@ object GuiUtility {
 
                 if (!showFlags) {
                     meta.addItemFlags(*ItemFlag.entries.toTypedArray())
+                    meta.isHideTooltip = true
                 }
             }
         }

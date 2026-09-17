@@ -1,10 +1,13 @@
 package org.tainorazum.universum.engine.game.manager
 
 import com.google.gson.Gson
+import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.arena.ArenaManager
+import org.tainorazum.universum.engine.game.games.child.Game_FFA
 import org.tainorazum.universum.engine.game.games.parent.Game
 import org.tainorazum.universum.engine.game.manager.fields.GameRequest
+import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.redis.RedisManager
 import java.util.concurrent.CompletableFuture
 
@@ -35,26 +38,20 @@ class GameManager {
     }
 
     fun createGame(request: GameRequest): CompletableFuture<Game?> {
-        val future = CompletableFuture<Game?>()
+        return Universum.arenaManager.retrieveArena(request.arenaName).thenApplyAsync({ arena ->
+            if (arena == null) return@thenApplyAsync null
 
-        val arenaFuture = Universum.arenaManager.retrieveArena(request.arenaName)
-
-        CompletableFuture.allOf(arenaFuture).thenAccept {
-            val arena = arenaFuture.get()
-
-            if(arena == null) {
-                future.complete(null)
-                return@thenAccept
+            val game = when (request.gameType) {
+                GameType.KIT_FFA -> Game_FFA(arena, request.teams, request.gameType, request.gameSettings)
+                GameType.KIT_DUEL -> TODO()
+                GameType.SPLEEF -> TODO()
+                GameType.BRIDGE -> TODO()
+                GameType.KOTH -> TODO()
             }
 
-            val game = Game(
-                arena, request.teams, request.gameType, request.gameSettings
-            )
-
             games.add(game)
-            future.complete(game)
-        }
-        return future
+            game
+        }, { runnable -> Bukkit.getScheduler().runTask(Universum.instance, runnable) })
     }
 
 }

@@ -18,8 +18,7 @@ object CosmeticsMenuGui {
 
         val pattern = listOf(
             "#########",
-            "#E##P##C#",
-            "##T#G#A##",
+            "#ECP#TGA#",
             "##R###M##",
             "#########",
             "B########"

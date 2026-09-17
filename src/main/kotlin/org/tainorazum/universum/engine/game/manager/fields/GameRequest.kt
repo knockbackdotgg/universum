@@ -12,5 +12,4 @@ data class GameRequest(
     val teams: List<GameTeam>,
 
     val arenaName: String,
-
     )
