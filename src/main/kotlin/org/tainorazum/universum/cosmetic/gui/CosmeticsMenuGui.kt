@@ -35,7 +35,7 @@ object CosmeticsMenuGui {
          * M = Armor trim colors
          */
 
-        return gui(Text.toSmallTextComponent(titleText, Colours.GREY), 54) {
+        return gui(Text.toSmallTextComponent(titleText, Colours.GREY), 45) {
             pattern(*pattern.toTypedArray())
 
             set(

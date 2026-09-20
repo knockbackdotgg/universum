@@ -9,5 +9,4 @@ enum class GameType {
     BRIDGE,
     KOTH,
 
-
 }

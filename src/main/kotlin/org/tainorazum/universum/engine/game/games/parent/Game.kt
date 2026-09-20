@@ -37,8 +37,8 @@ open class Game(
     private val spectators = mutableListOf<GameSpectator>()
 
     init {
-        prepare()
         register()
+        prepare()
     }
 
     //
@@ -63,13 +63,6 @@ open class Game(
         p.sendMessage(Component.text("player joined", Colours.GREEN))
 
         PlayerUtility.reset(p, GameMode.SPECTATOR)
-        PlayerUtility.blackout(
-            p,
-            Int.MAX_VALUE,
-            50,
-            Text.toSmallTextComponent("please wait for the game to start", Colours.YELLOW),
-            Component.text("...", Colours.GREY)
-        )
 
         check()
 
@@ -159,32 +152,30 @@ open class Game(
     // game management
     //
 
-    final fun prepare() {
-        arena.reset().thenAcceptAsync({ success ->
-            if (success) {
+    fun prepare() {
+        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+            try {
                 NetworkPlayerManager.broadcast(
                     Component.text("Created a game instance on server: ${Universum.server.identifier}", Colours.GREEN)
                 )
 
                 val uuids = getUUIDs()
+                Universum.instance.logger.info("[Game] Found ${uuids.size} UUIDs for player dispatch.")
+
                 if (uuids.isEmpty()) {
-                    Universum.instance.logger.warning("Game created but getUUIDs() returned an empty list!")
+                    Universum.instance.logger.warning("[Game] Game created but getUUIDs() returned an empty list!")
                 }
 
                 uuids.forEach { uuid ->
+                    Universum.instance.logger.info("[Game] Sending player $uuid to server ${Universum.server.identifier}")
                     NetworkPlayerManager.sendPlayer(uuid, Universum.server.identifier)
                 }
-            } else {
-                NetworkPlayerManager.broadcast(
-                    Component.text("Attempt to create a game instance failed on server: ${Universum.server.identifier}", Colours.RED)
-                )
+            } catch (e: Exception) {
+                Universum.instance.logger.severe("[Game] Failed during player dispatch:")
+                e.printStackTrace()
                 end()
             }
-        }, { runnable -> Bukkit.getScheduler().runTask(Universum.instance, runnable) })
-            .exceptionally { throwable ->
-                throwable.printStackTrace()
-                null
-            }
+        })
     }
 
     // game & round start

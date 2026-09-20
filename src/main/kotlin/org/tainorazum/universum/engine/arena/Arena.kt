@@ -19,18 +19,30 @@ class Arena(
 
     }
 
-    fun getLocations() : CompletableFuture<List<Location>> {
+    fun getLocations(): CompletableFuture<List<Location>> {
         val future = CompletableFuture<List<Location>>()
-        if(!locations.isEmpty()) {
+
+        if (locations.isNotEmpty()) {
             future.complete(locations)
             return future
         }
-        Universum.adbm.getArenaLocations(templateIdentifier).thenAccept {
 
+        Universum.adbm.getArenaLocations(templateIdentifier).thenAccept { locMap ->
+            if (locMap != null) {
+                val fetchedLocations = locMap.values.toList()
+                locations.addAll(fetchedLocations)
+                future.complete(locations)
+            } else {
+                future.complete(emptyList())
+            }
+        }.exceptionally { ex ->
+            Universum.instance.logger.severe("[Arena] Failed to load locations for $templateIdentifier:")
+            ex.printStackTrace()
+            future.complete(emptyList())
+            null
         }
 
         return future
-
     }
 
     fun reset(): CompletableFuture<Boolean> {

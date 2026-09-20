@@ -72,7 +72,16 @@ class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER)
             arenaName = map
         )
 
-        Universum.gameManager.requestGame(request)
+        Universum.gameManager.requestGame(request).thenAccept { success ->
+            if(success) {
+                actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3().append(Component.text("Game has been successfully requested",
+                    Colours.GREEN))))
+            }
+            else {
+                actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3().append(Component.text("Failed to request game",
+                    Colours.RED))))
+            }
+        }
 
     }
 
