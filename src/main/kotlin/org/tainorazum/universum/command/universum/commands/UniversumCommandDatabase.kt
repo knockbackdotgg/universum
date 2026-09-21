@@ -1,6 +1,7 @@
 package org.tainorazum.universum.command.universum.commands
 
 import net.kyori.adventure.text.Component
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.command.universum.UniversumCommandSub
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.database.DatabaseUtil
@@ -18,9 +19,25 @@ class UniversumCommandDatabase : UniversumCommandGeneral(UniversumCommandSub.DAT
     override val tutorial : List<Pair<String, String>> = mutableListOf(
         Pair("/universum database", "Receive this help message."),
         Pair("/universum database delete <name>", "Delete a database's table by name."),
+        Pair("/universum database delete arenas", "Delete all arena related databases.")
     )
 
     private val count = mutableMapOf<UUID, Int>()
+
+    @Subcommand("database delete arenas")
+    fun deleteArenas(
+        actor: BukkitCommandActor
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_DATABASE) {
+
+        Universum.adbm.dropArenaTables().thenAccept { success ->
+            if(success) {
+                actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Successfully deleted table all arena databases. Please restart the server so it can recreate the table if necessary.", Colours.GREEN)))
+            } else {
+                actor.reply(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Unable to delete table all arena databases. See console for details.", Colours.RED)))
+            }
+        }
+
+    }
 
     @OptIn(ExperimentalStdlibApi::class)
     @Subcommand("database delete")

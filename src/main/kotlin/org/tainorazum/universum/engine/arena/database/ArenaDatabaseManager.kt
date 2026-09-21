@@ -132,14 +132,15 @@ class ArenaDatabaseManager {
                 transaction {
                     DB_Arenas.selectAll()
                         .where { DB_Arenas.identifier eq arenaId }
-                        .map { row ->
+                        .mapNotNull { row ->
                             val nameComponent = ComponentSerializer.deserialize(row[DB_Arenas.name])
                             val descriptionComponent = ComponentSerializer.deserialize(row[DB_Arenas.description])
-
                             val rawBytes = row[DB_Arenas.schematic].bytes
 
-                            val centerLoc = row[DB_Arenas.centerLocation].toLocation()
-                                ?: throw IllegalStateException("Center location data is corrupted for arena: $arenaId")
+                            val centerLoc = row[DB_Arenas.centerLocation].toLocation() ?: run {
+                                Universum.instance.logger.warning("Failed to load center location for arena '$arenaId'. World may not be loaded or data is invalid.")
+                                return@mapNotNull null
+                            }
 
                             val radius = row[DB_Arenas.radius]
 
@@ -163,18 +164,39 @@ class ArenaDatabaseManager {
 
     // arena database
 
+    fun dropArenaTables(): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    exec("SET FOREIGN_KEY_CHECKS = 0;")
+                    exec("DROP TABLE IF EXISTS arena_locations;")
+                    exec("DROP TABLE IF EXISTS arena_gametypes;")
+                    exec("DROP TABLE IF EXISTS arena_kits;")
+                    exec("DROP TABLE IF EXISTS arenas;")
+                    exec("SET FOREIGN_KEY_CHECKS = 1;")
+                }
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
     fun getAllArenaTemplates(): CompletableFuture<List<ArenaTemplate>> {
         return dba {
             try {
                 transaction {
-                    DB_Arenas.selectAll().map { row ->
+                    DB_Arenas.selectAll().mapNotNull { row ->
                         val arenaId = row[DB_Arenas.identifier]
                         val nameComponent = ComponentSerializer.deserialize(row[DB_Arenas.name])
                         val descriptionComponent = ComponentSerializer.deserialize(row[DB_Arenas.description])
                         val rawBytes = row[DB_Arenas.schematic].bytes
 
-                        val centerLoc = row[DB_Arenas.centerLocation].toLocation()
-                            ?: throw IllegalStateException("Center location data is corrupted for arena: $arenaId")
+                        val centerLoc = row[DB_Arenas.centerLocation].toLocation() ?: run {
+                            Universum.instance.logger.warning("Skipping arena '$arenaId': Center location data or world is invalid.")
+                            return@mapNotNull null
+                        }
 
                         val radius = row[DB_Arenas.radius]
 
@@ -270,7 +292,10 @@ class ArenaDatabaseManager {
         val parts = this.split(";")
         if (parts.size < 4) return null
 
-        val world = Bukkit.getWorld(parts[0]) ?: return null
+        val world = Bukkit.getWorld(parts[0])
+            ?: Bukkit.getWorld(Universum.arenaManager.worldName)
+            ?: return null
+
         val x = parts[1].toDoubleOrNull() ?: return null
         val y = parts[2].toDoubleOrNull() ?: return null
         val z = parts[3].toDoubleOrNull() ?: return null

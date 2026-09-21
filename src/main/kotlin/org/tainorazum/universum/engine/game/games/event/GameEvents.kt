@@ -8,6 +8,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.event.EventPriority
+import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.event.block.*
 import org.bukkit.event.enchantment.EnchantItemEvent
@@ -66,6 +67,10 @@ abstract class GameEvents : Listener {
                 plugin.logger.warning("Failed to register event listener for ${eventClass.simpleName}: ${e.message}")
             }
         }
+    }
+
+    fun unregister() {
+        HandlerList.unregisterAll(this)
     }
 
     private fun cacheEventHandlers() {

@@ -19,6 +19,7 @@ import org.tainorazum.universum.redis.listeners.velocity.RM_VelocityPlayerSwitch
 import org.tainorazum.universum.server.server.ServerType
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
+import java.util.logging.Level
 
 object RedisSubscriber {
 
@@ -90,6 +91,7 @@ object RedisSubscriber {
     private fun registerListeners() {
         // games
         if(Universum.server.type == ServerType.GAME) {
+            Universum.instance.logger.log(Level.INFO, "Registered game request" )
             RM_GameRequest()
         }
 

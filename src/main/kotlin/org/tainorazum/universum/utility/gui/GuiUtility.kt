@@ -24,7 +24,6 @@ object GuiUtility {
         return item(material, name, loreComponents, showFlags, enchanted)
     }
 
-    // Main method handling nullable List<Component>
     fun item(
         material: Material,
         name: Component? = null,
@@ -42,7 +41,15 @@ object GuiUtility {
                 }
 
                 if (!showFlags) {
-                    meta.addItemFlags(*ItemFlag.entries.toTypedArray())
+                    meta.addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                    meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES)
+                    meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE)
+                    meta.addItemFlags(ItemFlag.HIDE_DESTROYS)
+                    meta.addItemFlags(ItemFlag.HIDE_PLACED_ON)
+                    meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP)
+                    meta.addItemFlags(ItemFlag.HIDE_DYE)
+                    meta.addItemFlags(ItemFlag.HIDE_ARMOR_TRIM)
+                    meta.addItemFlags(ItemFlag.HIDE_STORED_ENCHANTS)
                 }
             }
         }

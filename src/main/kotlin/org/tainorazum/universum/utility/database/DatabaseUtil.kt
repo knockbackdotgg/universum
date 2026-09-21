@@ -37,11 +37,41 @@ object DatabaseUtil {
         return future
     }
 
+    fun disableForeignKeyChecks(): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    exec("SET FOREIGN_KEY_CHECKS = 0;")
+                }
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
+    fun enableForeignKeyChecks(): CompletableFuture<Boolean> {
+        return dba {
+            try {
+                transaction {
+                    exec("SET FOREIGN_KEY_CHECKS = 1;")
+                }
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
     fun dropTableByName(tableName: String): CompletableFuture<Boolean> {
         return dba {
             transaction {
                 try {
+                    exec("SET FOREIGN_KEY_CHECKS = 0;")
                     exec("DROP TABLE IF EXISTS `$tableName`")
+                    exec("SET FOREIGN_KEY_CHECKS = 1;")
                     true
                 } catch (e: Exception) {
                     e.printStackTrace()

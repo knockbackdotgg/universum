@@ -80,10 +80,14 @@ object AdminArenaEditGui {
                     dbManager.saveClipboardToArena(player, arenaId).thenAccept { success ->
                         Bukkit.getScheduler().runTask(Universum.instance, Runnable {
                             if (success) {
-                                player.sendMessage(Component.text("${Prefix.ADMIN().append(Prefix.ARROW3())} Saved FAWE clipboard to arena '$arenaId'!", Colours.GREEN).norm())
+                                player.sendMessage(Prefix.ADMIN()
+                                    .append(Prefix.ARROW3())
+                                    .append(Component.text("Saved FAWE clipboard to arena '$arenaId'!", Colours.GREEN)))
                                 open(player, arenaId)
                             } else {
-                                player.sendMessage(Component.text("${Prefix.ADMIN().append(Prefix.ARROW3())} Failed to save schematic. Make sure you copied an area with WorldEdit!", Colours.RED).norm())
+                                player.sendMessage(Prefix.ADMIN()
+                                    .append(Prefix.ARROW3())
+                                    .append(Component.text("Failed to save schematic. Make sure you copied an area with WorldEdit!", Colours.GREEN)))
                             }
                         })
                     }

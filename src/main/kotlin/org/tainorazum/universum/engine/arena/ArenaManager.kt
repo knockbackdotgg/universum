@@ -70,13 +70,19 @@ class ArenaManager {
         val available = availableArenas.firstOrNull { it.templateIdentifier == identifier }
         if (available != null) {
             availableArenas.remove(available)
-            future.complete(available)
+            available.reset().thenAccept { success ->
+                Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                    future.complete(if (success) available else null)
+                })
+            }
             return future
         }
 
         val instanceId = generateNextId(identifier)
         createArenaInstance(instanceId, identifier).thenAccept { arena ->
-            future.complete(arena)
+            Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                future.complete(arena)
+            })
         }
 
         return future

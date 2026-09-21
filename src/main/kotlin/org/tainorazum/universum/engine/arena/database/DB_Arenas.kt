@@ -1,6 +1,7 @@
 package org.tainorazum.universum.engine.arena.database
 
 import org.jetbrains.exposed.sql.Table
+import org.tainorazum.universum.database.other.longBlob
 
 object DB_Arenas : Table("arenas") {
 
@@ -9,7 +10,7 @@ object DB_Arenas : Table("arenas") {
     val name = text("name") // frontend
     val description = text("description") // frontend
 
-    val schematic = blob("schematic") // backend
+    val schematic = longBlob("schematic") // backend
     val centerLocation = varchar("center_location", 100)
     val radius = double("radius")
 

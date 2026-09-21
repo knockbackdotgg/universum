@@ -1,6 +1,7 @@
 package org.tainorazum.universum.engine.game.games.parent
 
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
@@ -22,11 +23,11 @@ import java.util.UUID
 
 open class Game(
 
-    val arena: Arena,
-    val teams: List<GameTeam>,
+    open val arena: Arena,
+    open val teams: List<GameTeam>,
 
-    val gameType: GameType,
-    val gameSettings: GameSettings,
+    open val gameType: GameType,
+    open val gameSettings: GameSettings
 
 ) : GameEvents() {
 
@@ -36,6 +37,7 @@ open class Game(
     private val spectators = mutableListOf<GameSpectator>()
 
     init {
+        register()
         prepare()
     }
 
@@ -51,10 +53,6 @@ open class Game(
         return isInArena(location)
     }
 
-    fun registerListeners() {
-        register()
-    }
-
     //
     // events
     //
@@ -62,14 +60,9 @@ open class Game(
     override fun onPlayerJoin(event: PlayerJoinEvent) {
         val p = event.player
 
+        p.sendMessage(Component.text("player joined", Colours.GREEN))
+
         PlayerUtility.reset(p, GameMode.SPECTATOR)
-        PlayerUtility.blackout(
-            p,
-            Int.MAX_VALUE,
-            50,
-            Text.toSmallTextComponent("please wait for the game to start", Colours.YELLOW),
-            Component.text("...", Colours.GREY)
-        )
 
         check()
 
@@ -97,6 +90,14 @@ open class Game(
 
     fun getSpectator(uuid: UUID): GameSpectator? {
         return spectators.find { it.uuid == uuid }
+    }
+
+    fun addSpectator(spectator: GameSpectator) {
+        spectators.add(spectator)
+    }
+
+    fun removeSpectator(spectator: GameSpectator) {
+        spectators.remove(spectator)
     }
 
     //
@@ -152,17 +153,29 @@ open class Game(
     //
 
     fun prepare() {
-        arena.reset().thenAccept { success ->
-            if(success) {
+        Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+            try {
+                NetworkPlayerManager.broadcast(
+                    Component.text("Created a game instance on server: ${Universum.server.identifier}", Colours.GREEN)
+                )
 
-               getUUIDs().forEach { uuid ->
-                   NetworkPlayerManager.sendPlayer(uuid, Universum.server.identifier)
-               }
+                val uuids = getUUIDs()
+                Universum.instance.logger.info("[Game] Found ${uuids.size} UUIDs for player dispatch.")
 
-            } else {
+                if (uuids.isEmpty()) {
+                    Universum.instance.logger.warning("[Game] Game created but getUUIDs() returned an empty list!")
+                }
+
+                uuids.forEach { uuid ->
+                    Universum.instance.logger.info("[Game] Sending player $uuid to server ${Universum.server.identifier}")
+                    NetworkPlayerManager.sendPlayer(uuid, Universum.server.identifier)
+                }
+            } catch (e: Exception) {
+                Universum.instance.logger.severe("[Game] Failed during player dispatch:")
+                e.printStackTrace()
                 end()
             }
-        }
+        })
     }
 
     // game & round start
@@ -174,8 +187,6 @@ open class Game(
 
         }
 
-
-
     }
 
     // round stop
@@ -186,6 +197,7 @@ open class Game(
     // game stop
     fun end() {
         gameState(GameState.ENDING)
+        unregister()
     }
 
 }

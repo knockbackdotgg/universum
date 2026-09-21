@@ -77,6 +77,8 @@ object NetworkPlayerManager {
     }
 
     fun handleLocalJoin(player: Player, serverName: String) {
+        val alreadyOnline = isNetworkOnline(player.uniqueId)
+
         val netPlayer = NetworkPlayer(player.uniqueId, player.name, serverName)
         onlinePlayers[player.uniqueId] = netPlayer
 
@@ -87,11 +89,13 @@ object NetworkPlayerManager {
 
         PlayerUtility.cachePlayer(player.uniqueId, player.name)
         DB_Punishments.getPunishments(player.uniqueId)
-        DB_PlayerCosmetics.getPlayerCosmetics(player.uniqueId).thenApply { }
+        DB_PlayerCosmetics.getPlayerCosmetics(player.uniqueId)
 
         PlayerUtility.handlePlayerJoin(player)
 
-        handleTrueNetworkJoin(player.uniqueId)
+        if (!alreadyOnline) {
+            handleTrueNetworkJoin(player.uniqueId)
+        }
     }
 
     fun handleLocalQuit(player: Player, serverName: String) {
