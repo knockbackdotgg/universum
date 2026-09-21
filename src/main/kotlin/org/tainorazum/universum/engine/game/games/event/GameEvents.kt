@@ -69,9 +69,7 @@ abstract class GameEvents : Listener {
         }
     }
 
-    fun unregister() {
-        HandlerList.unregisterAll(this)
-    }
+    fun unregister() { HandlerList.unregisterAll(this) }
 
     private fun cacheEventHandlers() {
         for (method in this::class.java.methods) {
