@@ -1,7 +1,6 @@
-package org.tainorazum.universum.kiteditor.gui
+package org.tainorazum.universum.kiteditor.gui.admin
 
 import gg.flyte.twilight.gui.GUI
-import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -10,25 +9,25 @@ import org.bukkit.inventory.ItemStack
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.database.DB_Kits
-import org.tainorazum.universum.utility.gui.GuiUtility.item
+import org.tainorazum.universum.utility.gui.GuiUtility
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Text
 import org.tainorazum.universum.utility.text.norm
 import java.util.concurrent.CompletableFuture
 
-object DefaultKitGui {
+object AdminKitEditorGui {
 
     fun gui(player: Player, previous: GUI? = null): CompletableFuture<GUI> {
-        val titleText = "Default Kit Editor"
+        val titleText = "Admin kit editor"
 
         val pattern = listOf(
             "#########",
             "#KKKKKKK#",
             "#KKKKKKK#",
             "#KKKKKKK#",
-            "#########",
-            "B########"
+            "#KKKKKKK#",
+            "#########"
         )
 
         val kitSlots = pattern.flatMapIndexed { rowIndex, row ->
@@ -38,16 +37,30 @@ object DefaultKitGui {
         }
 
         return DB_Kits.getAllDefaultKits().thenApply { kits ->
-            gui(Text.toSmallTextComponent(titleText, Colours.GREY), 54) {
+            gg.flyte.twilight.gui.gui(Text.toSmallTextComponent(titleText, Colours.GREY), 54) {
                 pattern(*pattern.toTypedArray())
 
                 if (previous != null) {
-                    set('B', item(Material.ARROW, Text.toSmallTextComponent("Go Back", Colours.RED), "Click to return to the previous menu.")) {
+                    set(
+                        'B',
+                        GuiUtility.item(
+                            Material.ARROW,
+                            Text.toSmallTextComponent("Go Back", Colours.RED),
+                            "Click to return to the previous menu."
+                        )
+                    ) {
                         isCancelled = true
                         previous.open(player)
                     }
                 } else {
-                    set('B', item(Material.ARROW, Text.toSmallTextComponent("Close", Colours.RED), "Click to close this menu.")) {
+                    set(
+                        'B',
+                        GuiUtility.item(
+                            Material.ARROW,
+                            Text.toSmallTextComponent("Close", Colours.RED),
+                            "Click to close this menu."
+                        )
+                    ) {
                         isCancelled = true
                         player.closeInventory()
                     }
@@ -61,10 +74,23 @@ object DefaultKitGui {
                             isCancelled = true
                             player.closeInventory()
 
-                            Universum.kitEditorManager.editKit(kit, player, canCustomize = true, itemAccess = true, isDefault = true)
+                            Universum.kitEditorManager.editKit(
+                                kit,
+                                player,
+                                canCustomize = true,
+                                itemAccess = true,
+                                isDefault = true
+                            )
                         }
                     } else {
-                        set(slotIndex, item(Material.BARRIER, Text.toSmallTextComponent("No Kit Available", Colours.DARK_GREY).norm(), emptyList())) {
+                        set(
+                            slotIndex,
+                            GuiUtility.item(
+                                Material.BARRIER,
+                                Text.toSmallTextComponent("No Kit Available", Colours.DARK_GREY).norm(),
+                                emptyList()
+                            )
+                        ) {
                             isCancelled = true
                         }
                     }
@@ -91,9 +117,10 @@ object DefaultKitGui {
         loreList.add(Component.text("Click to edit this kit.", Colours.DARK_GREY).norm())
         loreList.add(Component.empty())
 
-        return item(
+        return GuiUtility.item(
             kit.material,
-            Component.text(kit.id.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }, Colours.YELLOW).norm(),
+            Component.text(kit.id.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }, Colours.YELLOW)
+                .norm(),
             loreList
         )
     }

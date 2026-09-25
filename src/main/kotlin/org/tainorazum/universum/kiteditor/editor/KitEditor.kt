@@ -31,15 +31,12 @@ class KitEditor(
         DB_KitEditor.getSpawnpointLocation().thenAccept { loc ->
             val world = loc.world ?: return@thenAccept
 
-            // 1. Load chunk asynchronously FIRST (prevents main thread lock)
             world.getChunkAtAsync(loc).thenAccept { chunk ->
                 Bukkit.getScheduler().runTask(Universum.instance, Runnable {
                     if (!player.isOnline) return@Runnable
 
-                    // Keep chunk loaded briefly
                     chunk.addPluginChunkTicket(Universum.instance)
 
-                    // 2. Perform async teleport
                     player.teleportAsync(loc).thenAccept { success ->
                         if (!success || !player.isOnline) {
                             chunk.removePluginChunkTicket(Universum.instance)
@@ -49,7 +46,6 @@ class KitEditor(
                         PlayerUtility.reset(player, GameMode.SURVIVAL)
                         kit.applyToPlayer(player)
 
-                        // 3. Delay isolation by 2 ticks so terrain renders cleanly first
                         Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
                             if (player.isOnline) {
                                 PlayerIsolationUtility.isolatePlayer(player)
@@ -121,4 +117,9 @@ class KitEditor(
             })
         }
     }
+
+    fun items() {
+
+    }
+
 }

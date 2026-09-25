@@ -7,8 +7,8 @@ import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializer
 import org.bukkit.Bukkit
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.engine.arena.ArenaManager
-import org.tainorazum.universum.engine.game.games.child.Game_FFA
+import org.tainorazum.universum.engine.game.games.child.Duel
+import org.tainorazum.universum.engine.game.games.child.Ffa
 import org.tainorazum.universum.engine.game.games.parent.Game
 import org.tainorazum.universum.engine.game.manager.fields.GameRequest
 import org.tainorazum.universum.engine.game.manager.fields.GameType
@@ -58,8 +58,8 @@ class GameManager {
 
             try {
                 val game: Game? = when (request.gameType) {
-                    GameType.KIT_FFA -> Game_FFA(arena, request.teams, request.gameType, request.gameSettings)
-                    GameType.KIT_DUEL -> null
+                    GameType.KIT_FFA -> Ffa(arena, request.teams, request.gameType, request.gameSettings)
+                    GameType.KIT_DUEL -> Duel(arena, request.teams, request.gameType, request.gameSettings)
                     GameType.SPLEEF -> null
                     GameType.BRIDGE -> null
                     GameType.KOTH -> null

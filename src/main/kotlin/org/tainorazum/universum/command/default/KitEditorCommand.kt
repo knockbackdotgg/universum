@@ -24,6 +24,26 @@ class KitEditorCommand {
 
     }
 
+    @Subcommand("items")
+    fun items(
+        actor: BukkitCommandActor
+    ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_KITEDITOR) {
+
+        val player = actor.requirePlayer()
+        val kitEditor = Universum.kitEditorManager.getKitEditor(player)
+
+        if(kitEditor != null) {
+            if(kitEditor.itemAccess) {
+
+            } else {
+                player.sendMessage(Component.text("You can't access items in this kit.", Colours.RED))
+            }
+        } else {
+            player.sendMessage(Component.text("You are unable to do that right now.", Colours.RED))
+        }
+
+    }
+
     @Subcommand("save")
     fun save(
         actor: BukkitCommandActor

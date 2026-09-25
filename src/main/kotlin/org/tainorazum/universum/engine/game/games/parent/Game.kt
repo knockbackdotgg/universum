@@ -15,6 +15,7 @@ import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.game.manager.fields.GameSpectator
 import org.tainorazum.universum.engine.game.manager.fields.GameState
 import org.tainorazum.universum.engine.game.manager.fields.GameTeam
+import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
@@ -25,6 +26,8 @@ open class Game(
 
     open val arena: Arena,
     open val teams: List<GameTeam>,
+
+    open val kit: Kit? = null,
 
     open val gameType: GameType,
     open val gameSettings: GameSettings

@@ -1,11 +1,6 @@
 package org.tainorazum.universum.engine.game.manager.fields
 
-import org.bukkit.Material
-import org.tainorazum.universum.engine.kit.Kit
-
-data class GameSettings (
-
-    val kit: Kit? = null,
+data class GameSettings(
     val rounds: Int = 1,
     val isRanked: Boolean = false,
 
@@ -16,6 +11,5 @@ data class GameSettings (
     val defaultFoodLevel: Int = 20,
 
     val maxHealth: Int = 20,
-    val defaultHealth: Int = 20,
-
+    val defaultHealth: Int = 20
 )

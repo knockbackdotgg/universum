@@ -3,7 +3,7 @@ package org.tainorazum.universum.command.admin.commands
 import net.kyori.adventure.text.Component
 import org.tainorazum.universum.command.admin.AdminCommandSub
 import org.tainorazum.universum.engine.kit.database.DB_Kits
-import org.tainorazum.universum.kiteditor.gui.DefaultKitGui
+import org.tainorazum.universum.kiteditor.gui.admin.AdminKitEditorGui
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
@@ -26,7 +26,7 @@ class AdminCommandKits : AdminCommandGeneral(AdminCommandSub.PUNISHMENTS) {
     ) = PlayerUtility.guard(actor, Permission.CMD_ADMIN_KITS) {
 
         val player = actor.requirePlayer()
-        DefaultKitGui.openGUI(player)
+        AdminKitEditorGui.openGUI(player)
 
     }
 

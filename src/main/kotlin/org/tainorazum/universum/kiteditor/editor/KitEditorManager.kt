@@ -68,15 +68,33 @@ class KitEditorManager {
         return editors.contains(uuid)
     }
 
-    /**
-     * @usage Set [isDefault] to true if the kit should be saved as a default kit.
-     */
-    fun editKit(kit: Kit, player: Player, canCustomize: Boolean = true, itemAccess: Boolean = false, isDefault: Boolean = false): CompletableFuture<Boolean> {
-        val future = CompletableFuture<Boolean>()
+    fun editKit(
+        kit: Kit,
+        player: Player,
+        canCustomize: Boolean = true,
+        itemAccess: Boolean = false,
+        isDefault: Boolean = false
+    ): CompletableFuture<Boolean> {
 
-        kitEditors.add(KitEditor(player, kit, canCustomize, itemAccess, isDefault))
+        return try {
+            kitEditors.add(
+                KitEditor(
+                    player,
+                    kit,
+                    canCustomize,
+                    itemAccess,
+                    isDefault
+                )
+            )
 
-        return future
+            CompletableFuture.completedFuture(true)
+        } catch (ex: Exception) {
+            Universum.instance.logger.severe(
+                "Failed to create kit editor: ${ex.message}"
+            )
+
+            CompletableFuture.completedFuture(false)
+        }
     }
 
     // events
