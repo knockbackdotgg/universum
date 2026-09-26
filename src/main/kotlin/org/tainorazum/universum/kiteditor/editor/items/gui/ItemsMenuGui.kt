@@ -21,10 +21,8 @@ object ItemsMenuGui {
 
         val pattern = listOf(
             "#########",
-            "###123###",
+            "#123#456#",
             "#########",
-            "###456###",
-            "#########"
         )
 
         /**
@@ -36,7 +34,7 @@ object ItemsMenuGui {
          * 6 =
          */
 
-        return gg.flyte.twilight.gui.gui(Text.toSmallTextComponent(titleText, Colours.GREY), 45) {
+        return gg.flyte.twilight.gui.gui(Text.toSmallTextComponent(titleText, Colours.GREY), 27) {
             pattern(*pattern.toTypedArray())
 
             set(

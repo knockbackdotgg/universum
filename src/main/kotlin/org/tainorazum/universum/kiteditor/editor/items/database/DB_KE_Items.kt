@@ -30,7 +30,6 @@ object DB_KE_Items : Table("kiteditor_items") {
     private fun lockFor(type: KitEditorItemsType): Any =
         mutationLocks.computeIfAbsent(type) { Any() }
 
-
     fun getMaterials(
         type: KitEditorItemsType
     ): CompletableFuture<List<Material>> {
@@ -49,7 +48,6 @@ object DB_KE_Items : Table("kiteditor_items") {
             }
 
             cachedMaterials.putIfAbsent(type, materials)
-
             cachedMaterials[type] ?: materials
         }
     }

@@ -34,9 +34,9 @@ class KitEditorCommand {
 
         if(kitEditor != null) {
             if(kitEditor.itemAccess) {
-
+                kitEditor.items()
             } else {
-                player.sendMessage(Component.text("You can't access items in this kit.", Colours.RED))
+                player.sendMessage(Component.text("You are unable to access items in this kit.", Colours.RED))
             }
         } else {
             player.sendMessage(Component.text("You are unable to do that right now.", Colours.RED))

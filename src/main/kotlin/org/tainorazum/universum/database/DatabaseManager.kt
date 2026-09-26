@@ -19,6 +19,7 @@ import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.friends.database.DB_Friends
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
+import org.tainorazum.universum.kiteditor.editor.items.database.DB_KE_Items
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.punishment.database.DB_Punishments
 import org.tainorazum.universum.server.server.DB_Server
@@ -78,6 +79,7 @@ class DatabaseManager {
         create(DB_Arenas)
         create(DB_ArenaLocations)
         create(DB_Kits)
+        create(DB_KE_Items)
         create(DB_ArenaGametypes)
         create(DB_ArenaKits)
         create(DB_Stats)

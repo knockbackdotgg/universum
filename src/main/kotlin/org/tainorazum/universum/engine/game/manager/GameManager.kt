@@ -58,8 +58,8 @@ class GameManager {
 
             try {
                 val game: Game? = when (request.gameType) {
-                    GameType.KIT_FFA -> Ffa(arena, request.teams, request.gameType, request.gameSettings)
-                    GameType.KIT_DUEL -> Duel(arena, request.teams, request.gameType, request.gameSettings)
+                    GameType.KIT_FFA -> Ffa(arena, request.teams, request.kit, request.gameType, request.gameSettings)
+                    GameType.KIT_DUEL -> Duel(arena, request.teams, request.kit, request.gameType, request.gameSettings)
                     GameType.SPLEEF -> null
                     GameType.BRIDGE -> null
                     GameType.KOTH -> null

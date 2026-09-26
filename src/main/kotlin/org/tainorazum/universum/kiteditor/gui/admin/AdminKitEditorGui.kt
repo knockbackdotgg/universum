@@ -72,6 +72,16 @@ object AdminKitEditorGui {
 
                         set(slotIndex, createKitItem(kit)) {
                             isCancelled = true
+
+                            if (isRightClick) {
+                                AdminKitSettingsGui.openGUI(
+                                    player,
+                                    kit,
+                                    this@gui
+                                )
+                                return@set
+                            }
+
                             player.closeInventory()
 
                             Universum.kitEditorManager.editKit(
@@ -114,7 +124,8 @@ object AdminKitEditorGui {
         val loreList = mutableListOf<Component>()
 
         loreList.add(Component.empty())
-        loreList.add(Component.text("Click to edit this kit.", Colours.DARK_GREY).norm())
+        loreList.add(Component.text("Left click to edit the contents of this kit.", Colours.DARK_GREY).norm())
+        loreList.add(Component.text("Right click to edit the settings of this kit.", Colours.DARK_GREY).norm())
         loreList.add(Component.empty())
 
         return GuiUtility.item(

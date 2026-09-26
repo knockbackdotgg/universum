@@ -11,12 +11,14 @@ import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.kit.Kit
+import org.tainorazum.universum.engine.kit.database.DB_GameSettings
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.utility.maps.SchematicUtil.pasteSchematicTo
 import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.isEmpty
 
 class KitEditorManager {
@@ -39,25 +41,23 @@ class KitEditorManager {
 
     // kit editor
 
-    private val editors = mutableListOf<UUID>()
-    private val kitEditors =mutableListOf<KitEditor>()
+    private val editors = ConcurrentHashMap.newKeySet<UUID>()
+    private val kitEditors = ConcurrentHashMap<UUID, KitEditor>()
 
     fun clearKitEditor(kitEditor: KitEditor): Boolean {
-        return kitEditors.remove(kitEditor)
+        return kitEditors.remove(kitEditor.player.uniqueId, kitEditor)
     }
 
     fun getKitEditor(player: Player): KitEditor? {
-        return kitEditors.firstOrNull { it.player == player }
+        return kitEditors[player.uniqueId]
     }
 
     fun getKitEditor(uuid: UUID): KitEditor? {
-        return kitEditors.firstOrNull { it.player.uniqueId == uuid }
+        return kitEditors[uuid]
     }
 
     fun addEditor(uuid: UUID): Boolean {
-        val isEditor = isEditor(uuid)
-        if(!isEditor) editors.add(uuid)
-        return isEditor
+        return editors.add(uuid)
     }
 
     fun removeEditor(uuid: UUID): Boolean {
@@ -65,7 +65,7 @@ class KitEditorManager {
     }
 
     fun isEditor(uuid: UUID): Boolean {
-        return editors.contains(uuid)
+        return uuid in editors
     }
 
     fun editKit(
@@ -76,25 +76,30 @@ class KitEditorManager {
         isDefault: Boolean = false
     ): CompletableFuture<Boolean> {
 
-        return try {
-            kitEditors.add(
-                KitEditor(
-                    player,
-                    kit,
-                    canCustomize,
-                    itemAccess,
-                    isDefault
-                )
-            )
-
-            CompletableFuture.completedFuture(true)
-        } catch (ex: Exception) {
-            Universum.instance.logger.severe(
-                "Failed to create kit editor: ${ex.message}"
-            )
-
-            CompletableFuture.completedFuture(false)
+        if (kitEditors.containsKey(player.uniqueId)) {
+            return CompletableFuture.completedFuture(false)
         }
+
+        return DB_GameSettings.get(kit.id)
+            .thenApply { settings ->
+                val editor = KitEditor(
+                    player = player,
+                    kit = kit,
+                    settings = settings,
+                    canCustomize = canCustomize,
+                    itemAccess = itemAccess,
+                    isDefault = isDefault
+                )
+
+                kitEditors[player.uniqueId] = editor
+                true
+            }
+            .exceptionally { ex ->
+                Universum.instance.logger.severe(
+                    "Failed to create kit editor for ${player.name}: ${ex.message}"
+                )
+                false
+            }
     }
 
     // events
@@ -145,6 +150,11 @@ class KitEditorManager {
 
             // 1. Handle Clicks Outside the Inventory Window
             if (slotType == InventoryType.SlotType.OUTSIDE) {
+                if(kitEditor.itemAccess) {
+                    setCursor(null)
+                    return@event
+                }
+
                 isCancelled = true
 
                 // Optional: If you want to DELETE the item on their cursor when dragged outside instead of closing GUI:

@@ -73,7 +73,6 @@ object ItemsGui {
 
                 pattern(*PATTERN.toTypedArray())
 
-
                 /*
                  * Back / Close button
                  */
@@ -153,7 +152,7 @@ object ItemsGui {
                  * pattern currently has no 'P' character.
                  */
                 set(
-                    49,
+                    'P',
                     item(
                         Material.PAPER,
                         Text.toSmallTextComponent(
@@ -194,7 +193,6 @@ object ItemsGui {
                         .drop(startIndex)
                         .take(PAGE_SIZE)
 
-
                 materialsForPage.forEachIndexed { index, material ->
 
                     val slotIndex = ITEM_SLOTS[index]
@@ -203,7 +201,7 @@ object ItemsGui {
                         slotIndex,
                         createMaterialItem(material)
                     ) {
-                        isCancelled = true
+                        isCancelled = false
 
                         // TODO:
                         // Handle material selection here.
@@ -224,7 +222,7 @@ object ItemsGui {
                     set(
                         slotIndex,
                         item(
-                            Material.BARRIER,
+                            Material.GRAY_STAINED_GLASS_PANE,
                             Text.toSmallTextComponent(
                                 "No Item Available",
                                 Colours.DARK_GREY
