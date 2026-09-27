@@ -51,7 +51,7 @@ abstract class GameEvents : Listener {
     // REGISTRATION & DISPATCHING
     // ==========================================
 
-    fun register(priority: EventPriority = EventPriority.HIGH) {
+    fun register(priority: EventPriority = EventPriority.HIGHEST) {
         val plugin = Universum.instance
         val pm = plugin.server.pluginManager
         for (eventClass in handlerCache.keys) {

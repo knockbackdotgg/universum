@@ -3,19 +3,27 @@ package org.tainorazum.universum.kiteditor.editor
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
+import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsGui
+import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsMenuGui
 import org.tainorazum.universum.lobby.database.DB_Lobby
+import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.player.PlayerIsolationUtility
 import org.tainorazum.universum.utility.player.PlayerUtility
+import org.tainorazum.universum.utility.player.PlayerUtility.msg
+import org.tainorazum.universum.utility.player.PlayerUtility.sound
 import org.tainorazum.universum.utility.text.Colours
 
 class KitEditor(
     val player: Player,
     val kit: Kit,
+    val settings: GameSettings,
     val canCustomize: Boolean = true,
     val itemAccess: Boolean = false,
     val isDefault: Boolean = false
@@ -31,15 +39,12 @@ class KitEditor(
         DB_KitEditor.getSpawnpointLocation().thenAccept { loc ->
             val world = loc.world ?: return@thenAccept
 
-            // 1. Load chunk asynchronously FIRST (prevents main thread lock)
             world.getChunkAtAsync(loc).thenAccept { chunk ->
                 Bukkit.getScheduler().runTask(Universum.instance, Runnable {
                     if (!player.isOnline) return@Runnable
 
-                    // Keep chunk loaded briefly
                     chunk.addPluginChunkTicket(Universum.instance)
 
-                    // 2. Perform async teleport
                     player.teleportAsync(loc).thenAccept { success ->
                         if (!success || !player.isOnline) {
                             chunk.removePluginChunkTicket(Universum.instance)
@@ -49,7 +54,6 @@ class KitEditor(
                         PlayerUtility.reset(player, GameMode.SURVIVAL)
                         kit.applyToPlayer(player)
 
-                        // 3. Delay isolation by 2 ticks so terrain renders cleanly first
                         Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
                             if (player.isOnline) {
                                 PlayerIsolationUtility.isolatePlayer(player)
@@ -90,6 +94,8 @@ class KitEditor(
                     }
                 })
             }
+
+            ItemsGui.clear(player)
         }
     }
 
@@ -101,6 +107,8 @@ class KitEditor(
         } else {
             PlayerIsolationUtility.unisolatePlayer(player)
             Universum.kitEditorManager.removeEditor(player.uniqueId)
+
+            ItemsGui.clear(player)
         }
         clear()
     }
@@ -121,4 +129,14 @@ class KitEditor(
             })
         }
     }
+
+    fun items() {
+        if(itemAccess) {
+            ItemsMenuGui.gui(player).open(player)
+            player.sound(Sound.BLOCK_CHEST_OPEN, 1.0f, 1.0f)
+        } else {
+            player.msg("You are unable to access items in this kit.", Colours.RED)
+        }
+    }
+
 }

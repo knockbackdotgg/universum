@@ -3,6 +3,7 @@ package org.tainorazum.universum.utility.player
 import com.comphenix.protocol.PacketType
 import com.comphenix.protocol.ProtocolLibrary
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.title.Title
 import org.bukkit.Bukkit
 import org.bukkit.Color
@@ -26,6 +27,7 @@ import org.joml.Vector3f
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.server.server.ServerType
+import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Messages
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import java.time.Duration
@@ -462,4 +464,15 @@ object PlayerUtility {
     fun Player.sound(sound: Sound, volume: Float, pitch: Float) {
         player?.let { it.playSound(it, sound, volume, pitch) }
     }
+
+    // =========================================================================
+    // Message
+    // =========================================================================
+
+    fun Player.msg(msg: String, color: TextColor) {
+
+        player?.sendMessage(Component.text(msg, color))
+
+    }
+
 }

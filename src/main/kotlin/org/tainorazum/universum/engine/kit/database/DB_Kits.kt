@@ -6,11 +6,13 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.util.KitSerializer
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
@@ -121,6 +123,7 @@ object DB_Kits : Table("kits") {
 
             // Delete and re-insert for universal compatibility across Exposed versions
             deleteWhere { (DB_Kits.id eq id) and (DB_Kits.ownerUuid eq ownerValue) }
+
             insert {
                 it[DB_Kits.id] = id
                 it[DB_Kits.name] = ComponentSerializer.serialize(finalNameComponent)
@@ -131,6 +134,13 @@ object DB_Kits : Table("kits") {
                 it[DB_Kits.itemAccess] = itemAccess ?: false
                 it[DB_Kits.schemaVersion] = 1
                 it[DB_Kits.createdAt] = System.currentTimeMillis()
+            }
+
+            if (ownerUuid == null) {
+                deleteWhere {
+                    (DB_Kits.id eq id) and
+                            (DB_Kits.ownerUuid neq DEFAULT_OWNER_MARKER)
+                }
             }
             true
         } catch (e: Exception) {
@@ -150,9 +160,6 @@ object DB_Kits : Table("kits") {
         }
     }
 
-    /**
-     * @Usage Save default kit as server Administrator.
-     */
     fun saveDefaultKitFromPlayer(
         id: String,
         player: Player,
@@ -163,7 +170,15 @@ object DB_Kits : Table("kits") {
     ): CompletableFuture<Boolean> {
         return snapshotPlayerInventory(player).thenCompose { snapshot ->
             dba {
-                storeKit(id, name, null, snapshot, material, canCustomize, itemAccess)
+                storeKit(
+                    id,
+                    name,
+                    null,
+                    snapshot,
+                    material,
+                    canCustomize,
+                    itemAccess
+                )
             }
         }
     }
@@ -307,4 +322,47 @@ object DB_Kits : Table("kits") {
                 ?.getOrNull() ?: Material.BARRIER
         }
     }
+
+    fun updateSettings(
+        id: String,
+        material: Material? = null,
+        canCustomize: Boolean? = null,
+        itemAccess: Boolean? = null
+    ): CompletableFuture<Boolean> {
+        return dba {
+            transaction {
+                val ownerValue = DEFAULT_OWNER_MARKER
+
+                val existing = selectAll()
+                    .where {
+                        (DB_Kits.id eq id) and
+                                (DB_Kits.ownerUuid eq ownerValue)
+                    }
+                    .firstOrNull()
+                    ?: return@transaction false
+
+                deleteWhere {
+                    (DB_Kits.id eq id) and
+                            (DB_Kits.ownerUuid eq ownerValue)
+                }
+
+                insert {
+                    it[DB_Kits.id] = id
+                    it[DB_Kits.name] = existing[DB_Kits.name]
+                    it[DB_Kits.ownerUuid] = ownerValue
+                    it[DB_Kits.kitJson] = existing[DB_Kits.kitJson]
+                    it[DB_Kits.material] = material?.name ?: existing[DB_Kits.material]
+                    it[DB_Kits.canCustomize] =
+                        canCustomize ?: existing[DB_Kits.canCustomize]
+                    it[DB_Kits.itemAccess] =
+                        itemAccess ?: existing[DB_Kits.itemAccess]
+                    it[DB_Kits.schemaVersion] = existing[DB_Kits.schemaVersion]
+                    it[DB_Kits.createdAt] = existing[DB_Kits.createdAt]
+                }
+
+                true
+            }
+        }
+    }
+
 }

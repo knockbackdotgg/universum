@@ -57,7 +57,7 @@ class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER)
         }
 
         val settings = GameSettings(
-            kit, rounds, isRanked, canModifyBlocks, canModifyMap,
+            rounds, isRanked, canModifyBlocks, canModifyMap,
         )
 
         val teams = listOf(
