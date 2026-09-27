@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerKickEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import org.bukkit.inventory.ItemStack
@@ -23,6 +24,7 @@ import org.tainorazum.universum.kiteditor.database.DB_KitEditor
 import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsGui
 import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsMenuGui
 import org.tainorazum.universum.utility.maps.SchematicUtil.pasteSchematicTo
+import org.tainorazum.universum.utility.player.PlayerIsolationUtility
 import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
 import java.util.UUID
@@ -536,7 +538,7 @@ class KitEditorManager {
         }
 
         event<InventoryCloseEvent>(EventPriority.MONITOR) {
-            val player = getPlayer() as Player
+            val player = player as Player
 
             if (!Universum.lobbyManager.isPlayerInLobby(player) ||
                 !isEditor(player.uniqueId)
@@ -628,16 +630,36 @@ class KitEditorManager {
 
         event<PlayerQuitEvent>(EventPriority.HIGHEST) {
 
-            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
-                !isEditor(player.uniqueId)
-            ) {
+            val uuid = player.uniqueId
+
+            if (!isEditor(uuid)) {
                 return@event
             }
 
-            val kitEditor = getKitEditor(player) ?: return@event
+            val kitEditor = getKitEditor(uuid)
 
-            kitEditor.cancel(true)
+            removeEditor(uuid)
+            kitEditors.remove(uuid)
 
+            if (kitEditor != null) {
+                PlayerIsolationUtility.unisolatePlayer(player)
+                ItemsGui.clear(player)
+            }
+        }
+
+        event<PlayerKickEvent>(EventPriority.HIGHEST) {
+
+            val uuid = player.uniqueId
+
+            if (!isEditor(uuid)) {
+                return@event
+            }
+
+            removeEditor(uuid)
+            kitEditors.remove(uuid)
+
+            PlayerIsolationUtility.unisolatePlayer(player)
+            ItemsGui.clear(player)
         }
 
     }

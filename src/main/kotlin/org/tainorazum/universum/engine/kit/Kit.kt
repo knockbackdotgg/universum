@@ -20,9 +20,9 @@ data class Kit(
     /**
      * @Usage Apply usable kit to player.
      */
-    fun applyToPlayer(player: Player): CompletableFuture<Boolean> {
+    fun applyToPlayer(player: Player, isDefault: Boolean = false): CompletableFuture<Boolean> {
         return getKitJson(id, player.uniqueId).thenCompose { personalJson ->
-            if (personalJson != null) {
+            if (personalJson != null && !isDefault) {
                 applyJsonToPlayer(player, personalJson)
             } else {
                 getDefaultKitJson(id).thenCompose { defaultJson ->
