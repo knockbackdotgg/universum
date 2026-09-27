@@ -10,6 +10,7 @@ import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
+import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsGui
 import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsMenuGui
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.utility.other.open
@@ -93,6 +94,8 @@ class KitEditor(
                     }
                 })
             }
+
+            ItemsGui.clear(player)
         }
     }
 
@@ -104,6 +107,8 @@ class KitEditor(
         } else {
             PlayerIsolationUtility.unisolatePlayer(player)
             Universum.kitEditorManager.removeEditor(player.uniqueId)
+
+            ItemsGui.clear(player)
         }
         clear()
     }

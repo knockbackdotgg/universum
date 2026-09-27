@@ -20,8 +20,11 @@ class KitEditorCommand {
     ) = PlayerUtility.guard(actor, Permission.CMD_DEFAULT_KITEDITOR, true) {
 
         val player = actor.requirePlayer()
-        KitEditorGui.openGUI(player)
-
+        if(!Universum.kitEditorManager.isEditor(player.uniqueId)) {
+            KitEditorGui.openGUI(player)
+        } else {
+            player.sendMessage(Component.text("You are unable to do that right now.", Colours.RED))
+        }
     }
 
     @Subcommand("items")

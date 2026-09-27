@@ -6,9 +6,11 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum
+import org.tainorazum.universum.cosmetic.gui.admin.utility.AdminMaterialSelectGui
 import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.database.DB_GameSettings
+import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.utility.gui.GuiUtility
 import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.text.Colours
@@ -23,11 +25,14 @@ object AdminKitSettingsGui {
         "#ABCDEFG#",
         "#HIJKLMN#",
         "#OPQRSTU#",
-        "##VWXYZ##",
-        "B########"
+        "#1234567#",
+        "*########"
     )
 
     /**
+     *
+     * KIT GAME SETTINGS
+     * * = BACK
      * A = ROUNDS
      * B = CAN MODIFY BLOCKS
      * C = CAN MODIFY MAP
@@ -47,12 +52,11 @@ object AdminKitSettingsGui {
      * R =
      * S =
      * T =
-     * U =
-     * V =
-     * W =
-     * X =
-     * Y =
-     * Z =
+     *
+     * KIT EDITOR/VISUAL SETTINGS
+     * 1 = MATERIAL
+     * 2 = CAN CUSTOMIZE
+     * 3 = ITEM ACCESS
      */
 
     fun gui(
@@ -73,6 +77,114 @@ object AdminKitSettingsGui {
 
                 pattern(*PATTERN.toTypedArray())
 
+                /*
+                * EDITOR SETTINGS
+                */
+
+                /*
+                 * MATERIAL
+                 */
+                set(
+                    '1',
+                    settingItem(
+                        kit.material,
+                        "Kit Material",
+                        kit.material.name
+                            .replace('_', ' ')
+                            .lowercase()
+                            .replaceFirstChar { it.uppercase() }
+                    )
+                ) {
+                    isCancelled = true
+
+                    AdminMaterialSelectGui.open(player) { material ->
+                        DB_Kits.updateSettings(
+                            id = kit.id,
+                            material = material
+                        ).thenAccept { success ->
+                            if (!success) return@thenAccept
+
+                            Bukkit.getScheduler().runTask(
+                                Universum.instance,
+                                Runnable {
+                                    openGUI(
+                                        player,
+                                        kit.copy(material = material),
+                                        previous
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                /*
+                 * CAN CUSTOMIZE
+                 */
+                set(
+                    '2',
+                    settingItem(
+                        Material.CRAFTING_TABLE,
+                        "Can Customize",
+                        enabledText(kit.canCustomize)
+                    )
+                ) {
+                    isCancelled = true
+
+                    val newValue = !kit.canCustomize
+
+                    DB_Kits.updateSettings(
+                        id = kit.id,
+                        canCustomize = newValue
+                    ).thenAccept { success ->
+                        if (success) {
+                            Bukkit.getScheduler().runTask(
+                                Universum.instance,
+                                Runnable {
+                                    openGUI(
+                                        player,
+                                        kit.copy(canCustomize = newValue),
+                                        previous
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                /*
+                 * ITEM ACCESS
+                 */
+                set(
+                    '3',
+                    settingItem(
+                        Material.CHEST,
+                        "Item Access",
+                        enabledText(kit.itemAccess)
+                    )
+                ) {
+                    isCancelled = true
+
+                    val newValue = !kit.itemAccess
+
+                    DB_Kits.updateSettings(
+                        id = kit.id,
+                        itemAccess = newValue
+                    ).thenAccept { success ->
+                        if (success) {
+                            Bukkit.getScheduler().runTask(
+                                Universum.instance,
+                                Runnable {
+                                    openGUI(
+                                        player,
+                                        kit.copy(itemAccess = newValue),
+                                        previous
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
 
                 /*
                  * ROUNDS
@@ -220,8 +332,7 @@ object AdminKitSettingsGui {
                     settingItem(
                         Material.GOLDEN_APPLE,
                         "Default Health",
-                        "${settings.defaultHealth} HP",
-                        "Max Health: ${settings.maxHealth} HP"
+                        "${settings.defaultHealth} HP | ${settings.defaultHealth/2} Hears",
                     )
                 ) {
                     isCancelled = true
@@ -231,7 +342,7 @@ object AdminKitSettingsGui {
                             10 -> 20
                             20 -> 40
                             40 -> 10
-                            else -> 20
+                            else -> settings.maxHealth
                         }
 
                     val newSettings = settings.copy(
@@ -252,18 +363,43 @@ object AdminKitSettingsGui {
                     settingItem(
                         Material.GOLDEN_APPLE,
                         "Max Health",
-                        "${settings.defaultHealth} HP",
-                        "Max Health: ${settings.maxHealth} HP"
+                        "${settings.maxHealth} HP | ${settings.maxHealth/2} Hearts",
                     )
                 ) {
                     isCancelled = true
 
                     val newHealth =
                         when (settings.maxHealth) {
-                            10 -> 20
-                            20 -> 40
-                            40 -> 10
-                            else -> 20
+                            2 -> 4
+                            4 -> 6
+                            6 -> 8
+                            8 -> 10
+                            10 -> 12
+                            12 -> 14
+                            14 -> 16
+                            16 -> 18
+                            18 -> 20
+                            20 -> 22
+                            22 -> 24
+                            24 -> 26
+                            26 -> 28
+                            28 -> 30
+                            30 -> 32
+                            32 -> 34
+                            34 -> 36
+                            36 -> 38
+                            38 -> 40
+                            40 -> 42
+                            42 -> 44
+                            44 -> 46
+                            46 -> 48
+                            48 -> 50
+                            50 -> 52
+                            52 -> 54
+                            54 -> 56
+                            56 -> 58
+                            58 -> 60
+                            else -> 2
                         }
 
                     val newSettings = settings.copy(
@@ -279,12 +415,11 @@ object AdminKitSettingsGui {
                     )
                 }
 
-
                 /*
                  * BACK
                  */
                 set(
-                    'B',
+                    '*',
                     GuiUtility.item(
                         Material.ARROW,
                         Text.toSmallTextComponent(
@@ -305,7 +440,6 @@ object AdminKitSettingsGui {
             }
         }
     }
-
 
     private fun settingItem(
         material: Material,

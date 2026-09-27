@@ -6,13 +6,22 @@ import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventPriority
+import org.bukkit.event.inventory.ClickType
 import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.InventoryCloseEvent
+import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.player.PlayerDropItemEvent
+import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.PlayerSwapHandItemsEvent
+import org.bukkit.inventory.ItemStack
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.database.DB_GameSettings
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
+import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsGui
+import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsMenuGui
 import org.tainorazum.universum.utility.maps.SchematicUtil.pasteSchematicTo
 import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
@@ -71,7 +80,7 @@ class KitEditorManager {
     fun editKit(
         kit: Kit,
         player: Player,
-        canCustomize: Boolean = true,
+        canCustomize: Boolean = false,
         itemAccess: Boolean = false,
         isDefault: Boolean = false
     ): CompletableFuture<Boolean> {
@@ -117,8 +126,8 @@ class KitEditorManager {
                 if (kitEditor != null) {
 
                     if (kitEditor.itemAccess) {
+                        isCancelled = false
                         itemDrop.remove()
-                        player.noSound()
                     } else {
                         // Block dropping entirely if they don't have itemAccess
                         isCancelled = true
@@ -132,67 +141,505 @@ class KitEditorManager {
         }
 
         // ----------------------------
-        // Inventory Click Event
+        // Inventory Drag Event
         // ----------------------------
-        event<InventoryClickEvent>(EventPriority.HIGH) {
-            val player = getPlayer()
+        event<InventoryDragEvent>(EventPriority.HIGH) {
 
-            if (!Universum.lobbyManager.isPlayerInLobby(player) || !isEditor(player.uniqueId)) {
+            val player = whoClicked as? Player
+                ?: return@event
+
+            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
+                !isEditor(player.uniqueId)
+            ) {
                 return@event
             }
 
             val kitEditor = getKitEditor(player)
+
             if (kitEditor == null) {
                 isCancelled = true
-                player.sendMessage(Component.text("You are unable to do that. Please contact an admin. (Error: Kit Editor hl1)", Colours.RED))
+
+                player.sendMessage(
+                    Component.text(
+                        "You are unable to do that. Please contact an admin. (Error: Kit Editor hl1)",
+                        Colours.RED
+                    )
+                )
+
                 return@event
             }
 
-            // 1. Handle Clicks Outside the Inventory Window
+            if (inventory.type == InventoryType.CRAFTING) {
+                isCancelled = true
+                return@event
+            }
+
+            // ============================================================
+            // ITEMS MENU GUI
+            // ============================================================
+
+            if (ItemsMenuGui.isItemsMenuGui(player)) {
+
+                /*
+                 * Never allow dragging into the menu itself.
+                 */
+                if (rawSlots.any { it < player.openInventory.topInventory.size }) {
+                    isCancelled = true
+                    return@event
+                }
+
+                /*
+                 * The player inventory is still a normal inventory.
+                 *
+                 * canCustomize controls whether the player can modify
+                 * their kit inventory.
+                 */
+                if (kitEditor.canCustomize) {
+                    return@event
+                }
+
+                isCancelled = true
+                return@event
+            }
+            // ============================================================
+            // ITEMS GUI
+            // ============================================================
+
+            if (ItemsGui.isItemsGui(player)) {
+
+                val touchesMaterialSlot =
+                    rawSlots.any { rawSlot ->
+                        ItemsGui.isMaterialSlot(player, rawSlot)
+                    }
+
+                if (touchesMaterialSlot) {
+
+                    isCancelled = false
+
+                    Bukkit.getScheduler().runTask(
+                        Universum.instance,
+                        Runnable {
+                            ItemsGui.restoreMaterialSlots(player)
+                        }
+                    )
+
+                    return@event
+                }
+
+                /*
+                 * Don't allow a drag into any other GUI slot.
+                 */
+                if (rawSlots.any {
+                        it < player.openInventory.topInventory.size
+                    }
+                ) {
+                    isCancelled = true
+                    return@event
+                }
+
+                /*
+                 * Player inventory.
+                 *
+                 * canCustomize controls whether the player can modify
+                 * their kit inventory.
+                 */
+                if (kitEditor.canCustomize) {
+                    return@event
+                }
+
+                isCancelled = true
+                return@event
+            }
+            // ============================================================
+            // NORMAL KIT EDITOR
+            // ============================================================
+
+            if (!kitEditor.canCustomize) {
+
+                isCancelled = true
+
+                player.closeInventory()
+
+                player.sendMessage(
+                    Component.text(
+                        "This kit does not allow customization.",
+                        Colours.YELLOW
+                    )
+                )
+
+                player.noSound()
+
+                return@event
+            }
+
+            /*
+             * Player is allowed to customize their inventory.
+             *
+             * This intentionally allows normal Bukkit drag behaviour:
+             * - moving items
+             * - splitting stacks
+             * - spreading items across slots
+             * - dragging a stack across multiple slots
+             * - etc.
+             */
+            return@event
+        }
+
+        // ----------------------------
+        // Inventory Click Event
+        // ----------------------------
+        event<InventoryClickEvent>(EventPriority.HIGH) {
+
+            val player = getPlayer()
+
+            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
+                !isEditor(player.uniqueId)
+            ) {
+                return@event
+            }
+
+            val kitEditor = getKitEditor(player)
+
+            if (kitEditor == null) {
+                isCancelled = true
+
+                player.sendMessage(
+                    Component.text(
+                        "You are unable to do that. Please contact an admin. (Error: Kit Editor hl1)",
+                        Colours.RED
+                    )
+                )
+
+                return@event
+            }
+
+            if (clickedInventory?.type == InventoryType.CRAFTING) {
+                isCancelled = true
+                return@event
+            }
+
+            // ============================================================
+            // ITEMS MENU GUI
+            // ============================================================
+
+            if (ItemsMenuGui.isItemsMenuGui(player)) {
+
+                /*
+                 * Menu itself is completely read-only.
+                 */
+                if (rawSlot < player.openInventory.topInventory.size) {
+                    isCancelled = true
+                    return@event
+                }
+
+                /*
+                 * Player inventory.
+                 *
+                 * canCustomize controls whether the player can modify
+                 * their kit inventory.
+                 */
+                if (clickedInventory?.type == InventoryType.PLAYER) {
+
+                    if (kitEditor.canCustomize) {
+                        return@event
+                    }
+
+                    isCancelled = true
+                    return@event
+                }
+
+                isCancelled = true
+                return@event
+            }
+
+            // ============================================================
+            // ITEMS GUI
+            // ============================================================
+
+            if (ItemsGui.isItemsGui(player)) {
+
+                if (slotType == InventoryType.SlotType.OUTSIDE) {
+                    if (kitEditor.itemAccess) {
+                        setCursor(null)
+                        return@event
+                    }
+                }
+
+                /*
+                 * --------------------------------------------------------
+                 * Material source slot
+                 * --------------------------------------------------------
+                 */
+                if (ItemsGui.isMaterialSlot(player, rawSlot)) {
+
+                    if (player.itemOnCursor != null && !player.itemOnCursor!!.type.isAir) {
+                        isCancelled = true
+                        return@event
+                    }
+
+                    if (click == ClickType.NUMBER_KEY) {
+                        isCancelled = true
+                        return@event
+                    }
+
+                    if (
+                        click == ClickType.DROP ||
+                        click == ClickType.CONTROL_DROP
+                    ) {
+                        isCancelled = true
+                        return@event
+                    }
+
+                    if (click == ClickType.DOUBLE_CLICK) {
+                        isCancelled = true
+                        return@event
+                    }
+
+                    val material = ItemsGui.getMaterial(player, rawSlot)
+
+                    if (material == null) {
+                        isCancelled = true
+                        return@event
+                    }
+
+                    /*
+                     * Shift-click:
+                     *
+                     * Don't let Bukkit move the GUI ItemStack directly, because that
+                     * would transfer its name/lore/attributes/etc.
+                     *
+                     * Instead, give the player a fresh basic material.
+                     */
+                    if (click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT) {
+                        isCancelled = true
+
+                        player.inventory.addItem(ItemStack(material))
+
+                        return@event
+                    }
+
+                    /*
+                     * Normal click:
+                     * Allow the normal chest-style transaction.
+                     */
+                    isCancelled = false
+
+                    Bukkit.getScheduler().runTask(
+                        Universum.instance,
+                        Runnable {
+                            /*
+                             * Replace the item on the cursor with a clean material.
+                             */
+                            if (!player.itemOnCursor.type.isAir) {
+                                setCursor(ItemStack(material))
+                            }
+
+                            /*
+                             * Restore the GUI source item.
+                             */
+                            ItemsGui.restoreMaterialSlots(player)
+                        }
+                    )
+
+                    return@event
+                }
+
+
+                /*
+                 * --------------------------------------------------------
+                 * Other GUI slots
+                 * --------------------------------------------------------
+                 */
+
+                if (rawSlot < player.openInventory.topInventory.size) {
+                    isCancelled = true
+                    return@event
+                }
+
+
+                /*
+                 * --------------------------------------------------------
+                 * Player inventory
+                 * --------------------------------------------------------
+                 */
+
+                if (clickedInventory?.type == InventoryType.PLAYER) {
+
+                    if (kitEditor.itemAccess) {
+                        return@event
+                    }
+
+                    isCancelled = true
+                    return@event
+                }
+
+                return@event
+            }
+
+
+            // ============================================================
+            // NORMAL KIT EDITOR
+            // ============================================================
+
+            /*
+             * Click outside inventory.
+             */
             if (slotType == InventoryType.SlotType.OUTSIDE) {
-                if(kitEditor.itemAccess) {
+
+                if (kitEditor.itemAccess) {
                     setCursor(null)
                     return@event
                 }
 
                 isCancelled = true
 
-                // Optional: If you want to DELETE the item on their cursor when dragged outside instead of closing GUI:
-                // event.cursor = null
+                Bukkit.getScheduler().runTask(
+                    Universum.instance,
+                    Runnable {
+                        player.closeInventory()
+                    }
+                )
 
-                Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-                    player.closeInventory()
-                })
+                player.sendMessage(
+                    Component.text(
+                        "Please do not attempt to drop items.",
+                        Colours.YELLOW
+                    )
+                )
 
-                player.sendMessage(Component.text("Please do not attempt to drop items.", Colours.YELLOW))
                 player.noSound()
+
                 return@event
             }
 
-            // 2. Handle Customization Restrictions
+
+            /*
+             * Customization disabled.
+             */
             if (!kitEditor.canCustomize) {
+
                 isCancelled = true
 
-                Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-                    player.closeInventory()
-                })
+                player.closeInventory()
 
-                player.sendMessage(Component.text("This kit does not allow customization.", Colours.YELLOW))
+                player.sendMessage(
+                    Component.text(
+                        "This kit does not allow customization.",
+                        Colours.YELLOW
+                    )
+                )
+
                 player.noSound()
-                return@event
-            }
 
-            // 3. Handle Player Inventory Clicks vs Container Clicks
-            if (clickedInventory?.type == InventoryType.PLAYER) {
-                if (kitEditor.itemAccess) {
-                    // Allow item interactions inside player inventory if itemAccess is enabled
-                    return@event
-                }
-            } else {
-                // Container inventory interactions logic or restriction fallback
-                isCancelled = true
+                return@event
             }
         }
+
+        event<InventoryCloseEvent>(EventPriority.MONITOR) {
+            val player = getPlayer() as Player
+
+            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
+                !isEditor(player.uniqueId)
+            ) {
+                return@event
+            }
+
+            ItemsMenuGui.removeViewer(player)
+        }
+
+        // ----------------------------
+        // Swap Main Hand / Offhand
+        // ----------------------------
+        event<PlayerSwapHandItemsEvent>(EventPriority.HIGHEST) {
+
+            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
+                !isEditor(player.uniqueId)
+            ) {
+                return@event
+            }
+
+            val kitEditor = getKitEditor(player) ?: return@event
+
+            if (kitEditor.canCustomize) {
+                /*
+                 * Allow the vanilla F keybind to swap the main hand
+                 * and offhand.
+                 */
+                isCancelled = false
+            }
+        }
+
+        // ----------------------------
+        // Armor Equip / Swap
+        // ----------------------------
+        event<PlayerInteractEvent>(EventPriority.HIGHEST) {
+
+            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
+                !isEditor(player.uniqueId)
+            ) {
+                return@event
+            }
+
+            val kitEditor = getKitEditor(player) ?: return@event
+
+            if (!kitEditor.canCustomize) {
+                return@event
+            }
+
+            if (action != org.bukkit.event.block.Action.RIGHT_CLICK_AIR &&
+                action != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
+            ) {
+                return@event
+            }
+
+            val item = item ?: return@event
+
+            if (item.type.isAir) {
+                return@event
+            }
+
+            val isArmor = item.type.name.endsWith("_HELMET") ||
+                    item.type.name.endsWith("_CHESTPLATE") ||
+                    item.type.name.endsWith("_LEGGINGS") ||
+                    item.type.name.endsWith("_BOOTS") ||
+                    item.type == org.bukkit.Material.TURTLE_HELMET ||
+                    item.type == org.bukkit.Material.ELYTRA
+
+            if (!isArmor) {
+                return@event
+            }
+
+            /*
+             * Prevent the block from being interacted with.
+             *
+             * This is important because the LobbyManager already cancelled
+             * the event at HIGH, and we only want to re-enable the item use,
+             * NOT the clicked block.
+             */
+            if (action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+                setUseInteractedBlock(org.bukkit.event.Event.Result.DENY)
+            }
+
+            /*
+             * Allow vanilla armor equipping/swapping.
+             */
+            setUseItemInHand(org.bukkit.event.Event.Result.ALLOW)
+        }
+
+        event<PlayerQuitEvent>(EventPriority.HIGHEST) {
+
+            if (!Universum.lobbyManager.isPlayerInLobby(player) ||
+                !isEditor(player.uniqueId)
+            ) {
+                return@event
+            }
+
+            val kitEditor = getKitEditor(player) ?: return@event
+
+            kitEditor.cancel(true)
+
+        }
+
     }
 
     // map

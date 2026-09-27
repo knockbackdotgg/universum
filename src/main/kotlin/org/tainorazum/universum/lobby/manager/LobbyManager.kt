@@ -1,5 +1,6 @@
 package org.tainorazum.universum.lobby.manager
 
+import io.papermc.paper.command.brigadier.argument.ArgumentTypes.player
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -55,6 +56,7 @@ import org.bukkit.event.inventory.PrepareItemCraftEvent
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent
 import org.bukkit.event.player.PlayerBedEnterEvent
 import org.bukkit.event.player.PlayerBedLeaveEvent
+import org.bukkit.event.player.PlayerChangedWorldEvent
 import org.bukkit.event.player.PlayerCommandPreprocessEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerEvent
@@ -93,6 +95,7 @@ import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.lobby.npc.NpcBouncer
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
+import org.tainorazum.universum.server.server.ServerType
 import org.tainorazum.universum.setting.database.DB_PlayerSettings
 import org.tainorazum.universum.utility.maps.SchematicUtil
 import org.tainorazum.universum.utility.other.formatDate
@@ -101,14 +104,16 @@ import org.tainorazum.universum.utility.player.PlayerIsolationUtility
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 class LobbyManager {
 
     var success: CompletableFuture<Boolean> = CompletableFuture<Boolean>()
         private set
 
-    private val players = mutableListOf<Player>()
+    private val players = ConcurrentHashMap.newKeySet<UUID>()
 
     init {
         registerEventListener()
@@ -124,13 +129,21 @@ class LobbyManager {
     }
     // interaction
 
+    // interaction
+
     fun enter(player: Player): Boolean {
-        return players.add(player)
+        return players.add(player.uniqueId)
     }
 
     fun leave(player: Player): Boolean {
-        return players.remove(player)
+        return players.remove(player.uniqueId)
     }
+
+    fun isPlayerInLobby(player: Player): Boolean {
+        return player.uniqueId in players
+    }
+
+    fun isLocationInLobby(location: Location) = DB_Lobby.isLocationInLobby(location)
 
     // map
 
@@ -178,7 +191,7 @@ class LobbyManager {
             BlockBreakEvent::class.java, BlockPlaceEvent::class.java, BlockBurnEvent::class.java, BlockFadeEvent::class.java,
             BlockFormEvent::class.java, BlockFromToEvent::class.java, BlockGrowEvent::class.java, BlockIgniteEvent::class.java,
             BlockPhysicsEvent::class.java, BlockSpreadEvent::class.java, BlockPistonExtendEvent::class.java, BlockPistonRetractEvent::class.java,
-            PlayerJoinEvent::class.java, PlayerQuitEvent::class.java, PlayerKickEvent::class.java, PlayerDeathEvent::class.java,
+            PlayerChangedWorldEvent::class.java, PlayerJoinEvent::class.java, PlayerQuitEvent::class.java, PlayerKickEvent::class.java, PlayerDeathEvent::class.java,
             PlayerMoveEvent::class.java, PlayerTeleportEvent::class.java, AsyncChatEvent::class.java, AsyncPlayerPreLoginEvent::class.java,
             PlayerInteractEvent::class.java, PlayerInteractEntityEvent::class.java, PlayerDropItemEvent::class.java,
             PlayerRespawnEvent::class.java, PlayerItemConsumeEvent::class.java, PlayerSwapHandItemsEvent::class.java,
@@ -223,6 +236,24 @@ class LobbyManager {
     fun BLOCK_PISTON_RETRACT_EVENT(event: BlockPistonRetractEvent) { cancel(event) }
 
     // player
+
+    fun PLAYER_CHANGED_WORLD_EVENT(event: PlayerChangedWorldEvent) {
+        if (Universum.server.type != ServerType.LOBBY) return
+
+        DB_Lobby.getSpawnpointLocation().thenAccept { lobby ->
+            val lobbyWorld = lobby?.world ?: return@thenAccept
+
+            when {
+                event.player.world.uid == lobbyWorld.uid -> {
+                    enter(event.player)
+                }
+
+                event.from.uid == lobbyWorld.uid -> {
+                    leave(event.player)
+                }
+            }
+        }
+    }
 
     fun FOOD_LEVEL_CHANGE_EVENT(event: FoodLevelChangeEvent) {
         event.foodLevel = 20
@@ -424,9 +455,6 @@ class LobbyManager {
         }
     }
 
-    fun isPlayerInLobby(player: Player) = players.contains(player)
-    fun isLocationInLobby(location: Location) = DB_Lobby.isLocationInLobby(location)
-
     private fun getPlayerFromEvent(event: Event): Player? {
         return when (event) {
             // Standard Player & Chat events
@@ -466,9 +494,9 @@ class LobbyManager {
 
     private fun isRelated(event: Event): Boolean {
         try {
-            if (event is AsyncChatEvent) {
-                return true
-            }
+            if(event is PlayerChangedWorldEvent) return true
+
+            if (event is AsyncChatEvent) return true
 
             val player = getPlayerFromEvent(event)
 
