@@ -52,7 +52,7 @@ class KitEditor(
                         }
 
                         PlayerUtility.reset(player, GameMode.SURVIVAL)
-                        kit.applyToPlayer(player)
+                        kit.applyToPlayer(player, isDefault)
 
                         Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
                             if (player.isOnline) {
@@ -67,12 +67,22 @@ class KitEditor(
     }
 
     fun leave() {
+
+        // Remove editor state immediately.
+        Universum.kitEditorManager.removeEditor(player.uniqueId)
+        ItemsGui.clear(player)
+        clear()
+
         DB_Lobby.getSpawnpointLocation().thenAccept { loc ->
             val world = loc.world ?: return@thenAccept
 
             world.getChunkAtAsync(loc).thenAccept { chunk ->
                 Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-                    if (!player.isOnline) return@Runnable
+
+                    if (!player.isOnline) {
+                        chunk.removePluginChunkTicket(Universum.instance)
+                        return@Runnable
+                    }
 
                     chunk.addPluginChunkTicket(Universum.instance)
 
@@ -84,33 +94,31 @@ class KitEditor(
 
                         PlayerUtility.reset(player, GameMode.SURVIVAL)
                         PlayerIsolationUtility.unisolatePlayer(player)
-                        Universum.kitEditorManager.removeEditor(player.uniqueId)
 
-                        clear()
-
-                        Bukkit.getScheduler().runTaskLater(Universum.instance, Runnable {
-                            chunk.removePluginChunkTicket(Universum.instance)
-                        }, 2L)
+                        Bukkit.getScheduler().runTaskLater(
+                            Universum.instance,
+                            Runnable {
+                                chunk.removePluginChunkTicket(Universum.instance)
+                            },
+                            2L
+                        )
                     }
                 })
             }
-
-            ItemsGui.clear(player)
         }
     }
 
     fun clear() = Universum.kitEditorManager.clearKitEditor(this)
 
     fun cancel(quit: Boolean = false) {
-        if (!quit) {
-            leave()
-        } else {
+        if (quit) {
             PlayerIsolationUtility.unisolatePlayer(player)
             Universum.kitEditorManager.removeEditor(player.uniqueId)
-
             ItemsGui.clear(player)
+            clear()
+        } else {
+            leave()
         }
-        clear()
     }
 
     fun save() {
