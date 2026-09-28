@@ -27,8 +27,6 @@ import org.tainorazum.universum.server.server.DB_Server
 import org.tainorazum.universum.server.setting.DB_ServerSettings
 import org.tainorazum.universum.server.visual.DB_VisualServer
 import org.tainorazum.universum.setting.database.DB_PlayerSettings
-import org.tainorazum.universum.utility.database.DatabaseUtil.dba
-import java.util.concurrent.CompletableFuture
 
 class DatabaseManager {
 

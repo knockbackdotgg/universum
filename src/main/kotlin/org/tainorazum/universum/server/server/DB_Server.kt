@@ -1,6 +1,5 @@
 package org.tainorazum.universum.server.server
 
-import org.bukkit.Location
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.coalesce
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
@@ -14,7 +13,6 @@ import org.jetbrains.exposed.sql.upsert
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
-import kotlin.collections.count
 
 object DB_Server : Table("servers") {
 

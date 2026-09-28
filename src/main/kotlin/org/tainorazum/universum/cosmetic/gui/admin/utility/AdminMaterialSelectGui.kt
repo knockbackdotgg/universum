@@ -1,6 +1,5 @@
 package org.tainorazum.universum.cosmetic.gui.admin.utility
 
-import gg.flyte.twilight.gui.GUI
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Material

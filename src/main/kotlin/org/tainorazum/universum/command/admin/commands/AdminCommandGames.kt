@@ -11,7 +11,6 @@ import org.tainorazum.universum.security.Permission
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
-import org.tainorazum.universum.utility.text.norm
 import revxrsal.commands.annotation.Command
 import revxrsal.commands.annotation.Subcommand
 import revxrsal.commands.annotation.Suggest

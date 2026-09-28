@@ -1,7 +1,6 @@
 package org.tainorazum.universum.engine.game.games.parent
 
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
@@ -19,7 +18,6 @@ import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
-import org.tainorazum.universum.utility.text.Text
 import java.util.UUID
 
 open class Game(

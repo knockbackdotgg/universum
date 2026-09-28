@@ -2,8 +2,10 @@ package org.tainorazum.universum.kiteditor.editor
 
 import gg.flyte.twilight.event.event
 import gg.flyte.twilight.extension.getPlayer
+import gg.flyte.twilight.scheduler.delay
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.EventPriority
 import org.bukkit.event.inventory.ClickType
@@ -21,10 +23,14 @@ import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.kit.Kit
 import org.tainorazum.universum.engine.kit.database.DB_GameSettings
 import org.tainorazum.universum.kiteditor.database.DB_KitEditor
+import org.tainorazum.universum.kiteditor.editor.attributes.AttributesGui
 import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsGui
 import org.tainorazum.universum.kiteditor.editor.items.gui.ItemsMenuGui
 import org.tainorazum.universum.utility.maps.SchematicUtil.pasteSchematicTo
+import org.tainorazum.universum.utility.other.hasAdditionalAttributes
+import org.tainorazum.universum.utility.other.isEnchantable
 import org.tainorazum.universum.utility.player.PlayerIsolationUtility
+import org.tainorazum.universum.utility.player.PlayerUtility.msg
 import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
 import java.util.UUID
@@ -38,14 +44,21 @@ class KitEditorManager {
         private set
 
     init {
-        build().thenAccept {
-            if (it) success.complete(true)
-        }.exceptionally { ex ->
-            Universum.instance.logger.severe("Failed to build kit editor schematic: ${ex.message}")
-            ex.printStackTrace()
-            success.complete(false)
-            null
-        }
+        build()
+            .thenAccept { result ->
+                success.complete(result)
+            }
+            .exceptionally { ex ->
+                Universum.instance.logger.severe(
+                    "Failed to build kit editor schematic: ${ex.message}"
+                )
+
+                ex.printStackTrace()
+
+                success.complete(false)
+
+                null
+            }
 
         registerEvents()
     }
@@ -252,6 +265,16 @@ class KitEditorManager {
                 isCancelled = true
                 return@event
             }
+
+            // ============================================================
+            // MODIFYING ITEMS
+            // ============================================================
+
+            if(AttributesGui.isAttributesGui(player)) {
+                isCancelled = true
+                return@event
+            }
+
             // ============================================================
             // NORMAL KIT EDITOR
             // ============================================================
@@ -342,6 +365,11 @@ class KitEditorManager {
                  */
                 if (clickedInventory?.type == InventoryType.PLAYER) {
 
+                    if(isShiftClick) {
+                        isCancelled = true
+                        return@event
+                    }
+
                     if (kitEditor.canCustomize) {
                         return@event
                     }
@@ -374,25 +402,16 @@ class KitEditorManager {
                  */
                 if (ItemsGui.isMaterialSlot(player, rawSlot)) {
 
-                    if (player.itemOnCursor != null && !player.itemOnCursor!!.type.isAir) {
+                    if (!player.itemOnCursor.type.isAir) {
                         isCancelled = true
                         return@event
                     }
 
-                    if (click == ClickType.NUMBER_KEY) {
-                        isCancelled = true
-                        return@event
-                    }
-
-                    if (
-                        click == ClickType.DROP ||
-                        click == ClickType.CONTROL_DROP
-                    ) {
-                        isCancelled = true
-                        return@event
-                    }
-
-                    if (click == ClickType.DOUBLE_CLICK) {
+                    if (click == ClickType.NUMBER_KEY
+                        || click == ClickType.NUMBER_KEY
+                        || click == ClickType.CONTROL_DROP
+                        || click == ClickType.DOUBLE_CLICK
+                        || click == ClickType.SWAP_OFFHAND) {
                         isCancelled = true
                         return@event
                     }
@@ -404,18 +423,39 @@ class KitEditorManager {
                         return@event
                     }
 
-                    /*
-                     * Shift-click:
-                     *
-                     * Don't let Bukkit move the GUI ItemStack directly, because that
-                     * would transfer its name/lore/attributes/etc.
-                     *
-                     * Instead, give the player a fresh basic material.
-                     */
                     if (click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT) {
                         isCancelled = true
 
-                        player.inventory.addItem(ItemStack(material))
+                        val itemToAdd = ItemStack(material)
+                        val inv = player.inventory
+
+                        val preferredSlots = (9..35) + (0..8)
+
+                        var remaining = itemToAdd.amount
+
+                        for (slot in preferredSlots) {
+                            val currentStack = inv.getItem(slot)
+                            if (currentStack != null && currentStack.isSimilar(itemToAdd) && currentStack.amount < currentStack.maxStackSize) {
+                                val spaceLeft = currentStack.maxStackSize - currentStack.amount
+                                val toAdd = minOf(remaining, spaceLeft)
+                                currentStack.amount += toAdd
+                                remaining -= toAdd
+                                if (remaining <= 0) break
+                            }
+                        }
+
+                        if (remaining > 0) {
+                            for (slot in preferredSlots) {
+                                val currentStack = inv.getItem(slot)
+                                if (currentStack == null || currentStack.type.isAir) {
+                                    val newStack = itemToAdd.clone()
+                                    newStack.amount = remaining
+                                    inv.setItem(slot, newStack)
+                                    remaining = 0
+                                    break
+                                }
+                            }
+                        }
 
                         return@event
                     }
@@ -467,6 +507,11 @@ class KitEditorManager {
 
                 if (clickedInventory?.type == InventoryType.PLAYER) {
 
+                    if(isShiftClick) {
+                        isCancelled = true
+                        return@event
+                    }
+
                     if (kitEditor.itemAccess) {
                         return@event
                     }
@@ -478,6 +523,36 @@ class KitEditorManager {
                 return@event
             }
 
+            // ============================================================
+            // MODIFYING ITEMS
+            // ============================================================
+
+            if(AttributesGui.isAttributesGui(player)) {
+                isCancelled = true
+                return@event
+            }
+
+            if (
+                currentItem != null
+                && currentItem?.type != Material.AIR
+                && isShiftClick
+                && player.inventory == clickedInventory) {
+
+                if (!kitEditor.canCustomize || !kitEditor.itemAccess) {
+                    return@event
+                }
+
+                if (currentItem?.hasAdditionalAttributes() == true) {
+                    isCancelled = true
+
+                    val itemToEdit = currentItem ?: return@event
+
+                    AttributesGui.open(player, itemToEdit) { newItem ->
+                        currentItem = newItem
+                        player.updateInventory()
+                    }
+                }
+            }
 
             // ============================================================
             // NORMAL KIT EDITOR
@@ -644,6 +719,7 @@ class KitEditorManager {
             if (kitEditor != null) {
                 PlayerIsolationUtility.unisolatePlayer(player)
                 ItemsGui.clear(player)
+                AttributesGui.clear(player)
             }
         }
 
@@ -660,6 +736,7 @@ class KitEditorManager {
 
             PlayerIsolationUtility.unisolatePlayer(player)
             ItemsGui.clear(player)
+            AttributesGui.clear(player)
         }
 
     }
@@ -667,29 +744,66 @@ class KitEditorManager {
     // map
 
     private fun build(): CompletableFuture<Boolean> {
+
         val targetLocationFuture = DB_KitEditor.getCenterLocation()
         val schematicBytesFuture = DB_KitEditor.getSchematicBytes()
 
-        return CompletableFuture.allOf(targetLocationFuture, schematicBytesFuture).thenCompose {
-            val targetLocation = targetLocationFuture.join()
-            val schematicBytes = schematicBytesFuture.join()
+        return CompletableFuture
+            .allOf(
+                targetLocationFuture,
+                schematicBytesFuture
+            )
+            .thenCompose {
 
-            if (schematicBytes == null || schematicBytes.isEmpty()) {
-                Universum.instance.logger.warning("Kit editor schematic bytes are empty or null! Skipping paste.")
-                return@thenCompose CompletableFuture.completedFuture(false)
+                val targetLocation = targetLocationFuture.join()
+                val schematicBytes = schematicBytesFuture.join()
+
+                Universum.instance.logger.info(
+                    "[KitEditor] Build requested: " +
+                            "target=${targetLocation.world?.name} " +
+                            "${targetLocation.x}, " +
+                            "${targetLocation.y}, " +
+                            "${targetLocation.z}, " +
+                            "schematicBytes=${schematicBytes?.size ?: 0}"
+                )
+
+                if (schematicBytes == null || schematicBytes.isEmpty()) {
+
+                    Universum.instance.logger.warning(
+                        "[KitEditor] No schematic found in database."
+                    )
+
+                    return@thenCompose CompletableFuture.completedFuture(false)
+                }
+
+                val world = targetLocation.world
+
+                if (world == null) {
+
+                    Universum.instance.logger.severe(
+                        "[KitEditor] Target world is null."
+                    )
+
+                    return@thenCompose CompletableFuture.completedFuture(false)
+                }
+
+                pasteSchematicTo(
+                    schematicBytes = schematicBytes,
+                    targetLocation = targetLocation,
+                    ignoreAir = false
+                )
             }
+            .exceptionally { ex ->
 
-            if (targetLocation.world == null) {
-                Universum.instance.logger.severe("Target world for kit editor schematic paste is null!")
-                return@thenCompose CompletableFuture.completedFuture(false)
+                Universum.instance.logger.severe(
+                    "[KitEditor] Build failed: " +
+                            "${ex.cause?.message ?: ex.message}"
+                )
+
+                ex.printStackTrace()
+
+                false
             }
-
-            pasteSchematicTo(schematicBytes, targetLocation, ignoreAir = false)
-        }.exceptionally { ex ->
-            Universum.instance.logger.severe("Failed to paste kit editor schematic: ${ex.cause?.message ?: ex.message}")
-            ex.printStackTrace()
-            false
-        }
     }
 
 }

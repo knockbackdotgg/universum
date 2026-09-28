@@ -1,6 +1,5 @@
 package org.tainorazum.universum.cosmetic.manager
 
-import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum

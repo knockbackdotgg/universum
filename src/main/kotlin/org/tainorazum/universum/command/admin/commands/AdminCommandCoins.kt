@@ -1,26 +1,16 @@
 package org.tainorazum.universum.command.admin.commands
 
 import net.kyori.adventure.text.Component
-import org.bukkit.Material
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.coins.database.DB_Coins
 import org.tainorazum.universum.command.admin.AdminCommandSub
-import org.tainorazum.universum.cosmetic.database.CosmeticEntry
-import org.tainorazum.universum.cosmetic.database.DB_Cosmetics
-import org.tainorazum.universum.cosmetic.gui.admin.AdminCosmeticsMenuGui
-import org.tainorazum.universum.cosmetic.util.CosmeticType
 import org.tainorazum.universum.security.Permission
-import org.tainorazum.universum.utility.other.open
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.player.PlayerUtility.noSound
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
 import revxrsal.commands.annotation.Command
-import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
-import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
-import java.util.logging.Level
 
 @Command("administrator", "admin", "a")
 class AdminCommandCoins : AdminCommandGeneral(AdminCommandSub.COINS) {

@@ -11,6 +11,7 @@ import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
 import revxrsal.commands.annotation.Command
 import revxrsal.commands.annotation.Subcommand
+import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 
 @Command("universum", "uni", "u")
@@ -19,6 +20,7 @@ class UniversumCommandKitEditor : UniversumCommandGeneral(UniversumCommandSub.KI
     override val tutorial : List<Pair<String, String>> = mutableListOf(
         Pair("/universum kitEditor", "Receive this help message."),
         Pair("/universum kitEditor setSpawn <worldName> <x> <y> <z> <yaw> <pitch>", " Set the server/kit editor's spawn to said location."),
+        Pair("/universum kitEditor setCenter <worldName> <x> <y> <z> <yaw> <pitch>", " Set the server/kit editor's center to said location."),
         Pair("/universum kitEditor setSchematic", " Set the kit editor's schematic to your current FAWE clipboard schematic.")
     )
 
@@ -41,12 +43,12 @@ class UniversumCommandKitEditor : UniversumCommandGeneral(UniversumCommandSub.KI
     @Subcommand("kitEditor setSpawn")
     fun setSpawn(
         actor: BukkitCommandActor,
-        worldName: String,
-        x: Double,
-        y: Double,
-        z: Double,
-        yaw: Float,
-        pitch: Float,
+        @Suggest("<world>") worldName: String,
+        @Suggest("<x>") x: Double,
+        @Suggest("<y>") y: Double,
+        @Suggest("<z>") z: Double,
+        @Suggest("<yaw>") yaw: Float,
+        @Suggest("<pitch>") pitch: Float,
     ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_KITEDITOR) {
 
         val player = actor.requirePlayer()
@@ -58,8 +60,44 @@ class UniversumCommandKitEditor : UniversumCommandGeneral(UniversumCommandSub.KI
         }
 
         if(location != null) {
-            DB_KitEditor.setSpawnLocation(location)
-            player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Kit editor spawn location has been set.", Colours.GREEN)))
+            DB_KitEditor.setSpawnLocation(location).thenAccept { success ->
+                if(success) {
+                    player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Kit editor spawn location has been set.", Colours.GREEN)))
+                } else {
+                    player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Failed to set kit editor spawn location.", Colours.RED)))
+                }
+            }
+        }
+
+    }
+
+    @Subcommand("kitEditor setCenter")
+    fun setCenter(
+        actor: BukkitCommandActor,
+        @Suggest("<world>") worldName: String,
+        @Suggest("<x>") x: Double,
+        @Suggest("<y>") y: Double,
+        @Suggest("<z>") z: Double,
+        @Suggest("<yaw>") yaw: Float,
+        @Suggest("<pitch>") pitch: Float,
+    ) = PlayerUtility.guard(actor, Permission.CMD_UNIVERSUM_KITEDITOR) {
+
+        val player = actor.requirePlayer()
+        var location: Location? = null
+        try {
+            location = Location(Bukkit.getWorld(worldName), x, y, z, yaw, pitch)
+        } catch (e: Exception) {
+            player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Invalid location, please try again.", Colours.RED)))
+        }
+
+        if(location != null) {
+            DB_KitEditor.setCenterLocation(location).thenAccept { success ->
+                if(success) {
+                    player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Kit editor center location has been set.", Colours.GREEN)))
+                } else {
+                    player.sendMessage(Prefix.UNIVERSUM().append(Prefix.ARROW3()).append(Component.text("Failed to set kit editor location.", Colours.RED)))
+                }
+            }
         }
 
     }

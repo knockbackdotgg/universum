@@ -1,17 +1,9 @@
 package org.tainorazum.universum.command.admin.commands
 
-import gg.flyte.twilight.gui.GUI
-import gg.flyte.twilight.gui.gui
 import net.kyori.adventure.text.Component
-import org.bukkit.Material
-import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.SkullMeta
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.command.admin.AdminCommandSub
 import org.tainorazum.universum.security.Permission
-import org.tainorazum.universum.utility.other.parseDuration
-import org.tainorazum.universum.utility.other.toHumanReadable
-import org.tainorazum.universum.utility.permissions.LuckpermsUtil
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
@@ -20,7 +12,6 @@ import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
 import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
-import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 

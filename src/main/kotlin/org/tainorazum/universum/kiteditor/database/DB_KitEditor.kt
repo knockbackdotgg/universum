@@ -6,7 +6,6 @@ import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
@@ -14,6 +13,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.tainorazum.universum.Universum
 import org.tainorazum.universum.database.other.longBlob
 import org.tainorazum.universum.lobby.database.DB_Lobby
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
@@ -101,59 +101,120 @@ object DB_KitEditor : Table("kiteditor") {
     }
 
     fun setSchematic(player: Player): CompletableFuture<Boolean> {
-        val actor = BukkitAdapter.adapt(player)
-        val session = WorldEdit.getInstance().sessionManager.get(actor)
 
-        val clipboardHolder = try {
-            session.clipboard
+        val actor = BukkitAdapter.adapt(player)
+        val session = WorldEdit.getInstance()
+            .sessionManager
+            .get(actor)
+
+        val clipboard = try {
+            session.clipboard.clipboard
         } catch (e: Exception) {
+            Universum.instance.logger.warning(
+                "[KitEditor] Player ${player.name} has no WorldEdit clipboard."
+            )
             return CompletableFuture.completedFuture(false)
         }
 
-        val clipboard = clipboardHolder.clipboard
         val region = clipboard.region
+        val origin = clipboard.origin
 
-        val centerVector = region.center
+        /*
+         * The clipboard region is the actual copied region.
+         *
+         * Store its geometric center as the world-space center.
+         */
+        val center = region.center
+
         val centerLocation = Location(
             player.world,
-            centerVector.x(),
-            centerVector.y(),
-            centerVector.z()
+            center.x(),
+            center.y(),
+            center.z()
         )
 
-        val bytes = ByteArrayOutputStream().use { baos ->
-            BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(baos).use { writer ->
-                writer.write(clipboard)
+        Universum.instance.logger.info(
+            "[KitEditor] Saving schematic: " +
+                    "world=${player.world.name}, " +
+                    "min=${region.minimumPoint}, " +
+                    "max=${region.maximumPoint}, " +
+                    "center=$center, " +
+                    "origin=$origin, " +
+                    "dimensions=${clipboard.dimensions}"
+        )
+
+        val bytes = try {
+            ByteArrayOutputStream().use { baos ->
+
+                BuiltInClipboardFormat
+                    .SPONGE_SCHEMATIC
+                    .getWriter(baos)
+                    .use { writer ->
+                        writer.write(clipboard)
+                    }
+
+                baos.toByteArray()
             }
-            baos.toByteArray()
+        } catch (e: Exception) {
+
+            Universum.instance.logger.severe(
+                "[KitEditor] Failed to serialize schematic: ${e.message}"
+            )
+
+            e.printStackTrace()
+
+            return CompletableFuture.completedFuture(false)
+        }
+
+        if (bytes.isEmpty()) {
+            Universum.instance.logger.severe(
+                "[KitEditor] Serialized schematic is empty."
+            )
+
+            return CompletableFuture.completedFuture(false)
         }
 
         val worldName = player.world.name
 
         return dba {
             transaction {
-                val exists = DB_KitEditor.selectAll()
-                    .where { DB_KitEditor.spawnpoint_world eq worldName }
+
+                val exists = DB_KitEditor
+                    .selectAll()
+                    .where {
+                        DB_KitEditor.spawnpoint_world eq worldName
+                    }
                     .count() > 0
 
                 if (exists) {
+
                     DB_KitEditor.update(
-                        where = { DB_KitEditor.spawnpoint_world eq worldName }
+                        where = {
+                            DB_KitEditor.spawnpoint_world eq worldName
+                        }
                     ) {
                         it[map_schematic] = ExposedBlob(bytes)
+
                         it[center_x] = centerLocation.x
                         it[center_y] = centerLocation.y
                         it[center_z] = centerLocation.z
                     }
+
                 } else {
+
                     DB_KitEditor.insert {
+
                         it[spawnpoint_world] = worldName
+
                         it[spawnpoint_x] = player.location.x
                         it[spawnpoint_y] = player.location.y
                         it[spawnpoint_z] = player.location.z
+
                         it[spawnpoint_yaw] = player.location.yaw
                         it[spawnpoint_pitch] = player.location.pitch
+
                         it[map_schematic] = ExposedBlob(bytes)
+
                         it[center_x] = centerLocation.x
                         it[center_y] = centerLocation.y
                         it[center_z] = centerLocation.z
@@ -162,8 +223,17 @@ object DB_KitEditor : Table("kiteditor") {
 
                 synchronized(cacheLock) {
                     cachedKitEditorWorld = worldName
+                    cachedCenterLocation = centerLocation.clone()
                 }
-                cachedCenterLocation = centerLocation
+
+                Universum.instance.logger.info(
+                    "[KitEditor] Saved schematic successfully. " +
+                            "Center=${centerLocation.blockX}, " +
+                            "${centerLocation.blockY}, " +
+                            "${centerLocation.blockZ}, " +
+                            "size=${bytes.size} bytes"
+                )
+
                 true
             }
         }

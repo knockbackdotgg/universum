@@ -17,7 +17,6 @@ import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.update
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.engine.arena.database.DB_Arenas.schematic
 import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.engine.kit.database.DB_Kits
 import org.tainorazum.universum.utility.text.ComponentSerializer
