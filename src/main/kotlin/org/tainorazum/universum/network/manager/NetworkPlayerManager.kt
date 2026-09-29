@@ -2,7 +2,6 @@ package org.tainorazum.universum.network.manager
 
 import com.google.gson.Gson
 import gg.flyte.twilight.event.event
-import gg.flyte.twilight.gson.toJson
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.bukkit.Bukkit
@@ -23,7 +22,6 @@ import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 data class ServerMessage(

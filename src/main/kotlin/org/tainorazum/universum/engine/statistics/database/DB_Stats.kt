@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 object DB_Stats : Table("statistics") {
 
     val identifier = varchar("identifier", 100) // Clean statistic identifier (e.g. "kills", "deaths")
-    val gametype = varchar("gametype", 100)
+    val gametype = enumerationByName<GameType>("gametype", 100)
     val ranked = bool("ranked").default(false)
 
     val uuid = varchar("uuid", 36)
@@ -29,14 +29,14 @@ object DB_Stats : Table("statistics") {
     override val primaryKey = PrimaryKey(identifier, gametype, ranked, uuid)
 
     // Cache: keep in-memory values and accumulate local deltas.
-    private data class StatsKey(val id: String, val gametype: String, val ranked: Boolean, val uuid: String)
+    private data class StatsKey(val id: String, val gametype: GameType, val ranked: Boolean, val uuid: String)
 
     private val cache = ConcurrentHashMap<StatsKey, Double>()
     private val pendingDeltas = mutableMapOf<StatsKey, Double>()
     private val pendingLock = Any()
 
     // Cache structure for Leaderboards
-    private data class LeaderboardKey(val id: String, val gametype: String, val ranked: Boolean)
+    private data class LeaderboardKey(val id: String, val gametype: GameType, val ranked: Boolean)
     data class LeaderboardEntry(val uuid: String, val value: Double)
 
     private data class CachedLeaderboard(
@@ -48,6 +48,7 @@ object DB_Stats : Table("statistics") {
     private val leaderboardCache = ConcurrentHashMap<LeaderboardKey, CachedLeaderboard>()
     private val leaderboardFetchLocks = ConcurrentHashMap<LeaderboardKey, Any>()
     private val globalLeaderboardCache = ConcurrentHashMap<Pair<String, Boolean>, CachedLeaderboard>()
+    private val globalLeaderboardFetchLocks = ConcurrentHashMap<Pair<String, Boolean>, Any>()
 
     // Scheduler to flush periodically.
     private var scheduler: ScheduledExecutorService? = null
@@ -61,7 +62,7 @@ object DB_Stats : Table("statistics") {
         playerUuid: String,
         ranked: Boolean = false
     ): CompletableFuture<Double> {
-        val key = StatsKey(id, gameType.name, ranked, playerUuid)
+        val key = StatsKey(id, gameType, ranked, playerUuid)
         val cached = cache[key]
         if (cached != null) return CompletableFuture.completedFuture(cached)
 
@@ -70,7 +71,7 @@ object DB_Stats : Table("statistics") {
                 val valueFromDb = DB_Stats.selectAll()
                     .where {
                         (DB_Stats.identifier eq id) and
-                                (DB_Stats.gametype eq gameType.name) and
+                                (DB_Stats.gametype eq gameType) and
                                 (DB_Stats.ranked eq ranked) and
                                 (DB_Stats.uuid eq playerUuid)
                     }
@@ -96,7 +97,7 @@ object DB_Stats : Table("statistics") {
         value: Double,
         ranked: Boolean = false
     ): CompletableFuture<Boolean> {
-        val key = StatsKey(id, gameType.name, ranked, playerUuid)
+        val key = StatsKey(id, gameType, ranked, playerUuid)
 
         val current = cache[key]
         if (current != null) {
@@ -113,7 +114,7 @@ object DB_Stats : Table("statistics") {
                 val dbVal = DB_Stats.selectAll()
                     .where {
                         (DB_Stats.identifier eq id) and
-                                (DB_Stats.gametype eq gameType.name) and
+                                (DB_Stats.gametype eq gameType) and
                                 (DB_Stats.ranked eq ranked) and
                                 (DB_Stats.uuid eq playerUuid)
                     }
@@ -142,7 +143,7 @@ object DB_Stats : Table("statistics") {
         delta: Double,
         ranked: Boolean = false
     ): CompletableFuture<Boolean> {
-        val key = StatsKey(id, gameType.name, ranked, playerUuid)
+        val key = StatsKey(id, gameType, ranked, playerUuid)
 
         cache.compute(key) { _, old -> (old ?: 0.0) + delta }
 
@@ -163,7 +164,7 @@ object DB_Stats : Table("statistics") {
         limit: Int = 10,
         cacheDurationMinutes: Long = 5L
     ): CompletableFuture<List<LeaderboardEntry>> {
-        val key = LeaderboardKey(id, gameType.name, ranked)
+        val key = LeaderboardKey(id, gameType, ranked)
         val now = System.currentTimeMillis()
         val cacheTtlMillis = TimeUnit.MINUTES.toMillis(cacheDurationMinutes)
 
@@ -186,7 +187,7 @@ object DB_Stats : Table("statistics") {
                         DB_Stats.selectAll()
                             .where {
                                 (DB_Stats.identifier eq id) and
-                                        (DB_Stats.gametype eq gameType.name) and
+                                        (DB_Stats.gametype eq gameType) and
                                         (DB_Stats.ranked eq ranked)
                             }
                             .orderBy(DB_Stats.value to org.jetbrains.exposed.sql.SortOrder.DESC)
@@ -204,7 +205,7 @@ object DB_Stats : Table("statistics") {
 
                     synchronized(pendingLock) {
                         pendingDeltas.forEach { (deltaKey, deltaValue) ->
-                            if (deltaKey.id == id && deltaKey.gametype == gameType.name && deltaKey.ranked == ranked) {
+                            if (deltaKey.id == id && deltaKey.gametype == gameType && deltaKey.ranked == ranked) {
                                 mergedResults.compute(deltaKey.uuid) { _, current ->
                                     (current ?: 0.0) + deltaValue
                                 }
@@ -219,7 +220,7 @@ object DB_Stats : Table("statistics") {
                     leaderboardCache[key] = CachedLeaderboard(finalTopList, System.currentTimeMillis())
 
                     finalTopList.forEach { entry ->
-                        cache[StatsKey(id, gameType.name, ranked, entry.uuid)] = entry.value
+                        cache[StatsKey(id, gameType, ranked, entry.uuid)] = entry.value
                     }
 
                     finalTopList
@@ -249,7 +250,7 @@ object DB_Stats : Table("statistics") {
         }
 
         return dba {
-            val lock = leaderboardFetchLocks.computeIfAbsent(LeaderboardKey(id, "GLOBAL", ranked)) { Any() }
+            val lock = globalLeaderboardFetchLocks.computeIfAbsent(cacheKey) { Any() }
             synchronized(lock) {
                 val rechecked = globalLeaderboardCache[cacheKey]
                 if (rechecked != null && (System.currentTimeMillis() - rechecked.timestamp) < cacheTtlMillis) {
@@ -296,7 +297,7 @@ object DB_Stats : Table("statistics") {
                     globalLeaderboardCache[cacheKey] = CachedLeaderboard(finalTopList, System.currentTimeMillis())
                     finalTopList
                 } finally {
-                    leaderboardFetchLocks.remove(LeaderboardKey(id, "GLOBAL", ranked))
+                    globalLeaderboardFetchLocks.remove(cacheKey)
                 }
             }
         }

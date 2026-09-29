@@ -1,11 +1,8 @@
 package org.tainorazum.universum.friends.manager
 
 import com.google.gson.Gson
-import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
 import org.tainorazum.universum.Universum
-import org.tainorazum.universum.chat.ChatMessage
-import org.tainorazum.universum.chat.manager.ChatManager
 import org.tainorazum.universum.friends.database.DB_Friends
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisManager

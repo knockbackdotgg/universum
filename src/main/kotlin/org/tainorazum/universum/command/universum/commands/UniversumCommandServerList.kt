@@ -8,7 +8,6 @@ import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
 import org.tainorazum.universum.utility.text.Prefix
 import revxrsal.commands.annotation.Command
-import revxrsal.commands.annotation.Single
 import revxrsal.commands.annotation.Subcommand
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 

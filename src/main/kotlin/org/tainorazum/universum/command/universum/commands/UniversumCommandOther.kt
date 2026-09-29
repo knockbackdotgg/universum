@@ -1,9 +1,7 @@
 package org.tainorazum.universum.command.universum.commands
 
 import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
 import org.bukkit.entity.Player
-import org.bukkit.scoreboard.Team
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.command.universum.UniversumCommandSub
 import org.tainorazum.universum.engine.game.manager.fields.GameRequest
@@ -23,7 +21,6 @@ import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
 import revxrsal.commands.annotation.Suggest
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
-import java.util.concurrent.CompletableFuture
 
 @Command("universum", "uni", "u")
 class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER) {

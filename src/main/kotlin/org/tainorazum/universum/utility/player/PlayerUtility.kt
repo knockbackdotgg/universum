@@ -6,7 +6,6 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.title.Title
 import org.bukkit.Bukkit
-import org.bukkit.Color
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.Material
@@ -469,7 +468,7 @@ object PlayerUtility {
     // Message
     // =========================================================================
 
-    fun Player.msg(msg: String, color: TextColor) {
+    fun Player.msg(msg: String, color: TextColor? = Colours.GREY) {
 
         player?.sendMessage(Component.text(msg, color))
 

@@ -99,117 +99,222 @@ class Universum : JavaPlugin() {
 
     override fun onEnable() {
         instance = this
+
         saveDefaultConfig()
+
         twilight(this)
 
-        // 1. Initialize Database
+        logger.info("========================================")
+        logger.info("        Starting Universum Plugin       ")
+        logger.info("========================================")
+
+        // ------------------------------------------------------------
+        // Database
+        // ------------------------------------------------------------
+
         try {
             dbm = DatabaseManager()
             dbm?.init()
-            logger.info("Successfully connected to the database pool.")
-        } catch (e: Exception) {
-            logger.log(Level.SEVERE, "Failed to initialize database connection! Disabling plugin...", e)
+
+            logger.info("Database initialized successfully.")
+        } catch (ex: Exception) {
+            logger.log(
+                Level.SEVERE,
+                "Failed to initialize database! Disabling plugin...",
+                ex
+            )
+
             Bukkit.getPluginManager().disablePlugin(this)
             return
         }
 
-        // 2. Initialize Services & Managers FIRST before Redis listeners
-        val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
+        // ------------------------------------------------------------
+        // LuckPerms
+        // ------------------------------------------------------------
+
+        val provider =
+            Bukkit.getServicesManager()
+                .getRegistration(LuckPerms::class.java)
+
         if (provider != null) {
             luckperms = provider.provider
+            logger.info("LuckPerms initialized successfully.")
+        } else {
+            logger.severe("LuckPerms API was not found!")
         }
 
+        // ------------------------------------------------------------
+        // General managers
+        //
+        // IMPORTANT:
+        // These must be initialized BEFORE RedisSubscriber because
+        // Redis listeners may access Universum.server and other
+        // managers during registration.
+        // ------------------------------------------------------------
+
         updater = Updater()
-        lobbyManager = LobbyManager()
+
         adbm = ArenaDatabaseManager()
         arenaManager = ArenaManager()
+
         gameManager = GameManager()
+
+        /*
+         * ServerManager initializes Universum.server.
+         *
+         * RedisSubscriber MUST NOT start before this.
+         */
         serverManager = ServerManager()
+
         visualServerManager = VisualServerManager()
+
         whitelistManager = WhitelistManager()
+
         playerManager = PlayerManager()
         punishmentManager = PunishmentManager()
+
         PetManager.registerEvents()
+
         cosmeticManager = CosmeticManager()
+
         chatFilterManager = ChatFilterManager()
         chatManager = ChatManager()
+
         playerSettingManager = PlayerSettingManager()
-        kitEditorManager = KitEditorManager()
+
+        /*
+         * LobbyManager registers player listeners, so its dependencies
+         * must already exist.
+         */
         friendsManager = FriendsManager()
         coinsManager = CoinsManager()
 
+        lobbyManager = LobbyManager()
+
         AnvilInput.init(this)
 
-        // 3. Initialize Redis NOW (after friendsManager exists)
-        val redisEnabled = config.getBoolean("redis.enabled", false)
+        // ------------------------------------------------------------
+        // Redis
+        //
+        // IMPORTANT:
+        // Redis initialization is intentionally AFTER the managers
+        // above. RedisSubscriber.registerListeners() accesses
+        // Universum.server.
+        // ------------------------------------------------------------
+
+        val redisEnabled =
+            config.getBoolean("redis.enabled", false)
+
         if (redisEnabled) {
-            val uri = config.getString("redis.uri") ?: "redis://localhost:6379"
+
+            val uri =
+                config.getString("redis.uri")
+                    ?: "redis://localhost:6379"
+
             if (RedisManager.init(uri)) {
+
+                logger.info(
+                    "[RedisManager] Successfully connected to Redis!"
+                )
+
                 RedisSubscriber.start(this)
+
                 NetworkPlayerManager.loadInitialPlayers()
+
             } else {
-                logger.warning("Redis is enabled in config but failed to connect.")
+
+                logger.warning(
+                    "Redis is enabled in config but failed to connect."
+                )
             }
         }
-        DB_ServerSettings.set(ServerSetting.REDIS, redisEnabled)
 
-        // 4. Register Commands & Features
+        DB_ServerSettings.set(
+            ServerSetting.REDIS,
+            redisEnabled
+        )
+
+        // ------------------------------------------------------------
+        // Command framework
+        // ------------------------------------------------------------
+
         val lamp = BukkitLamp.builder(this)
             .parameterTypes { types ->
-                // Duration resolver
-                types.addParameterType(Duration::class.java) { input, _ ->
+
+                types.addParameterType(
+                    Duration::class.java
+                ) { input, _ ->
+
                     val text = input.readString()
-                    parseDuration(text) ?: throw IllegalArgumentException("Invalid duration format!")
+
+                    parseDuration(text)
+                        ?: throw IllegalArgumentException(
+                            "Invalid duration format!"
+                        )
                 }
-                types.addParameterType(Kit::class.java) { input, _ ->
+
+                types.addParameterType(
+                    Kit::class.java
+                ) { input, _ ->
+
                     val kitId = input.readString()
+
                     DB_Kits.getKit(kitId).join()
-                        ?: throw IllegalArgumentException("Kit '$kitId' does not exist!")
+                        ?: throw IllegalArgumentException(
+                            "Kit '$kitId' does not exist!"
+                        )
                 }
             }
             .suggestionProviders { providers ->
-                providers.addProvider(Kit::class.java) { context ->
-                    DB_Kits.getAllDefaultKits().join().map { it.id }
+
+                providers.addProvider(Kit::class.java) {
+
+                    DB_Kits.getAllDefaultKits()
+                        .join()
+                        .map { it.id }
                 }
             }
             .build()
 
+        // ------------------------------------------------------------
+        // Other services
+        // ------------------------------------------------------------
+
         NametagManager.init()
 
-        delay(20) {
-            try {
-                DB_ServerSettings.loadAllSettingsIntoCache().get()
-                logger.info("Successfully loaded server settings into cache.")
-            } catch (e: Exception) {
-                logger.warning("Failed to load server settings into cache: ${e.message}")
-            }
-
-            if (Companion.server.type == ServerType.LOBBY) {
-                if (!DB_Lobby.loadAndCacheBoundary()) {
-                    logger.warning("Failed to load lobby world from database; lobby checks will be disabled.")
-                }
-                if (!DB_KitEditor.loadAndCacheBoundary()) {
-                    logger.warning("Failed to load kit editor world from database; kit editor won't work.")
-                }
-            }
-        }
+        // ------------------------------------------------------------
+        // PlaceholderAPI
+        // ------------------------------------------------------------
 
         if (server.pluginManager.getPlugin("PlaceholderAPI") != null) {
+
             StatsPlaceholder().register()
             HoloStatsPlaceholder().register()
-            logger.info("Successfully registered PlaceholderAPI expansions!")
+
+            logger.info(
+                "Successfully registered PlaceholderAPI expansions!"
+            )
+
         } else {
-            logger.warning("PlaceholderAPI not found! Hologram & stat placeholders will not function.")
+
+            logger.warning(
+                "PlaceholderAPI not found! " +
+                        "Hologram & stat placeholders will not function."
+            )
         }
 
-        // default commands
+        // ------------------------------------------------------------
+        // Commands
+        // ------------------------------------------------------------
+
+        // Default commands
         lamp.register(SettingsCommand())
         lamp.register(CycleHoloCommand())
         lamp.register(CosmeticsCommand())
         lamp.register(KitEditorCommand())
         lamp.register(FriendsCommand())
 
-        // universum commands
+        // Universum commands
         lamp.register(UniversumCommandGeneral())
         lamp.register(UniversumCommandOther())
         lamp.register(UniversumCommandLobby())
@@ -217,7 +322,7 @@ class Universum : JavaPlugin() {
         lamp.register(UniversumCommandServerList())
         lamp.register(UniversumCommandKitEditor())
 
-        // admin commands
+        // Admin commands
         lamp.register(AdminCommandGeneral())
         lamp.register(AdminCommandWhitelist())
         lamp.register(AdminCommandBypass())
@@ -227,45 +332,318 @@ class Universum : JavaPlugin() {
         lamp.register(AdminCommandCoins())
         lamp.register(AdminCommandGames())
 
-        delay(40) {
-            open().thenAccept { success ->
-                if (success) {
-                    server.setWhitelist(false)
-                    serverManager.online()
-                    update()
+        logger.info("Commands registered successfully.")
+
+        // ------------------------------------------------------------
+        // Delayed database/cache initialization
+        //
+        // KitEditorManager is intentionally created here because its
+        // constructor immediately starts build(), which needs the
+        // KitEditor database/cache values.
+        // ------------------------------------------------------------
+
+        delay(20) {
+
+            try {
+
+                logger.info(
+                    "Loading persistent Universum settings/boundaries..."
+                )
+
+                // ----------------------------------------------------
+                // Server settings
+                // ----------------------------------------------------
+
+                try {
+
+                    DB_ServerSettings
+                        .loadAllSettingsIntoCache()
+                        .get()
+
+                    logger.info(
+                        "Successfully loaded server settings into cache."
+                    )
+
+                } catch (ex: Exception) {
+
+                    logger.warning(
+                        "Failed to load server settings into cache: " +
+                                ex.message
+                    )
                 }
+
+                // ----------------------------------------------------
+                // Lobby boundaries
+                // ----------------------------------------------------
+
+                if (Companion.server.type == ServerType.LOBBY) {
+
+                    val lobbyLoaded =
+                        DB_Lobby.loadAndCacheBoundary()
+
+                    if (lobbyLoaded) {
+
+                        logger.info(
+                            "Lobby boundary loaded successfully."
+                        )
+
+                    } else {
+
+                        logger.warning(
+                            "Failed to load lobby boundary."
+                        )
+                    }
+
+                    // ------------------------------------------------
+                    // Kit Editor boundary
+                    // ------------------------------------------------
+
+                    val kitEditorLoaded =
+                        DB_KitEditor.loadAndCacheBoundary()
+
+                    if (kitEditorLoaded) {
+
+                        logger.info(
+                            "Kit editor boundary/cache loaded successfully."
+                        )
+
+                    } else {
+
+                        logger.warning(
+                            "Failed to load kit editor boundary/cache."
+                        )
+                    }
+
+                    // ------------------------------------------------
+                    // Kit Editor Manager
+                    // ------------------------------------------------
+
+                    logger.info(
+                        "Initializing KitEditorManager..."
+                    )
+
+                    kitEditorManager =
+                        KitEditorManager()
+
+                    logger.info(
+                        "KitEditorManager initialization started."
+                    )
+                }
+
+            } catch (ex: Exception) {
+
+                logger.severe(
+                    "Failed during delayed Universum initialization: " +
+                            ex.message
+                )
+
+                ex.printStackTrace()
+
+                server.setWhitelist(true)
+                serverManager.offline()
             }
         }
+
+        // ------------------------------------------------------------
+        // Final startup
+        //
+        // Wait for ArenaManager, LobbyManager and KitEditorManager.
+        // ------------------------------------------------------------
+
+        delay(40) {
+
+            try {
+
+                logger.info(
+                    "Waiting for Universum managers to finish initialization..."
+                )
+
+                val arenaManagerFuture =
+                    arenaManager.success
+
+                val lobbyManagerFuture =
+                    lobbyManager.success
+
+                /*
+                 * KitEditorManager is only constructed by the 20-tick
+                 * task above on lobby servers.
+                 */
+                val kitEditorManagerFuture =
+                    if (Companion.server.type == ServerType.LOBBY) {
+                        kitEditorManager.success
+                    } else {
+                        CompletableFuture.completedFuture(true)
+                    }
+
+                CompletableFuture.allOf(
+                    arenaManagerFuture,
+                    lobbyManagerFuture,
+                    kitEditorManagerFuture
+                ).thenAccept {
+
+                    try {
+
+                        val arenaSuccess =
+                            arenaManagerFuture.join()
+
+                        val lobbySuccess =
+                            lobbyManagerFuture.join()
+
+                        val kitEditorSuccess =
+                            kitEditorManagerFuture.join()
+
+                        logger.info(
+                            "Manager initialization results: " +
+                                    "arena=$arenaSuccess, " +
+                                    "lobby=$lobbySuccess, " +
+                                    "kitEditor=$kitEditorSuccess"
+                        )
+
+                        val allSuccess =
+                            arenaSuccess &&
+                                    lobbySuccess &&
+                                    kitEditorSuccess
+
+                        if (allSuccess) {
+
+                            logger.info(
+                                "All Universum managers initialized successfully."
+                            )
+
+                            server.setWhitelist(false)
+
+                            serverManager.online()
+
+                            update()
+
+                            logger.info(
+                                "========================================"
+                            )
+
+                            logger.info(
+                                "          Universum is ONLINE           "
+                            )
+
+                            logger.info(
+                                "========================================"
+                            )
+
+                        } else {
+
+                            logger.severe(
+                                "One or more Universum managers " +
+                                        "failed to initialize."
+                            )
+
+                            server.setWhitelist(true)
+
+                            serverManager.offline()
+                        }
+
+                    } catch (ex: Exception) {
+
+                        logger.severe(
+                            "Failed while finalizing Universum startup: " +
+                                    ex.message
+                        )
+
+                        ex.printStackTrace()
+
+                        server.setWhitelist(true)
+                        serverManager.offline()
+                    }
+
+                }.exceptionally { ex ->
+
+                    logger.severe(
+                        "Universum startup future failed: " +
+                                ex.message
+                    )
+
+                    ex.printStackTrace()
+
+                    server.setWhitelist(true)
+                    serverManager.offline()
+
+                    null
+                }
+
+            } catch (ex: Exception) {
+
+                logger.severe(
+                    "Failed during Universum startup: " +
+                            ex.message
+                )
+
+                ex.printStackTrace()
+
+                server.setWhitelist(true)
+                serverManager.offline()
+            }
+        }
+
+        logger.info(
+            "Universum onEnable() initialization scheduled successfully."
+        )
     }
 
     override fun onDisable() {
+
         DB_Stats.shutdownAndFlush()
 
         RedisSubscriber.stop()
         RedisManager.close()
 
         dbm?.close()
+
         if (dbm != null) {
-            logger.info("Database pool safely disconnected.")
+
+            logger.info(
+                "Database pool safely disconnected."
+            )
         }
     }
 
     private fun update() {
-        val interval = config.getInt("update-interval").or(60)
-        Bukkit.getScheduler().runTaskTimer(this, Runnable {
-            updater.update()
-        }, 10L, interval * 20L)
+
+        val interval =
+            config.getInt("update-interval").or(60)
+
+        Bukkit.getScheduler().runTaskTimer(
+            this,
+            Runnable {
+                updater.update()
+            },
+            10L,
+            interval * 20L
+        )
     }
 
     private fun open(): CompletableFuture<Boolean> {
-        val future = CompletableFuture<Boolean>()
 
-        val arenaManagerFuture = arenaManager.success
-        val lobbyManagerFuture = lobbyManager.success
-        val kitEditorManagerFuture = kitEditorManager.success
+        val future =
+            CompletableFuture<Boolean>()
 
-        CompletableFuture.allOf(arenaManagerFuture, lobbyManagerFuture, kitEditorManagerFuture).thenAccept {
-            val allSuccess = arenaManagerFuture.join() && lobbyManagerFuture.join() && kitEditorManagerFuture.join()
+        val arenaManagerFuture =
+            arenaManager.success
+
+        val lobbyManagerFuture =
+            lobbyManager.success
+
+        val kitEditorManagerFuture =
+            kitEditorManager.success
+
+        CompletableFuture.allOf(
+            arenaManagerFuture,
+            lobbyManagerFuture,
+            kitEditorManagerFuture
+        ).thenAccept {
+
+            val allSuccess =
+                arenaManagerFuture.join() &&
+                        lobbyManagerFuture.join() &&
+                        kitEditorManagerFuture.join()
+
             future.complete(allSuccess)
         }
 
