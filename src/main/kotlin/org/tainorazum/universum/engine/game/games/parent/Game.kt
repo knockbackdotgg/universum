@@ -6,6 +6,7 @@ import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.scoreboard.Team
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.arena.Arena
 import org.tainorazum.universum.engine.game.games.event.GameEvents
@@ -19,6 +20,7 @@ import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 open class Game(
 
@@ -119,10 +121,16 @@ open class Game(
         return uuids
     }
 
-    fun getTeamPlayers(index: Int): List<Player> {
+    fun getTeamPlayers(id: String): List<Player> {
         val players = ArrayList<Player>()
 
-        teams[index].uuids.forEach { Bukkit.getPlayer(it)?.let { p -> players.add(p) } }
+        teams.forEach { team ->
+            if(team.id == id) {
+                team.uuids.forEach {
+                    Bukkit.getPlayer(it)?.let { p -> players += p }
+                }
+            }
+        }
         return players
     }
 
@@ -137,6 +145,8 @@ open class Game(
         val ready = players.size == uuids.size
 
         if(ready) start()
+
+        Universum.instance.logger.info("Checking to start game. Result: $ready")
 
         return ready
     }
@@ -179,15 +189,89 @@ open class Game(
         })
     }
 
+    // teleportation
+
+    fun tpToStart(): CompletableFuture<Boolean> {
+        val future = CompletableFuture<Boolean>()
+
+        arena.getLocations().thenAccept { locationMap ->
+            Bukkit.getScheduler().runTask(Universum.instance, Runnable {
+                try {
+                    teams.forEach { team ->
+                        val players = getTeamPlayers(team.id)
+
+                        players.forEachIndexed { index, player ->
+                            val playerNumber = index + 1
+                            val key = "${team.id}.$playerNumber"
+                            val location = locationMap[key]
+
+                            if (location != null) {
+                                player.teleport(location)
+                            } else {
+                                Universum.instance.logger.warning("[Game] Missing start location for key: $key")
+                            }
+                        }
+                    }
+                    future.complete(true)
+                } catch (e: Exception) {
+                    Universum.instance.logger.severe("[Game] Error during teleportation: ${e.message}")
+                    e.printStackTrace()
+                    future.complete(false)
+                }
+            })
+        }.exceptionally { throwable ->
+            Universum.instance.logger.severe("[Game] Failed to fetch arena locations: ${throwable.message}")
+            future.complete(false)
+            null
+        }
+
+        return future
+    }
+
+    // kits
+
+    /**
+     * @return Whether the function completed. (Will return true even if there is no kit required for this game.)
+     * @return Returns false if an error has occurred.
+     */
+    fun supplyKit(player: Player): CompletableFuture<Boolean> {
+        val future = CompletableFuture<Boolean>()
+
+        if(kit != null) {
+
+            kit!!.applyToPlayer(player).thenAccept { success ->
+                future.complete(success)
+            }
+
+        } else future.complete(true)
+
+        return future
+
+    }
+
     // game & round start
     fun start() {
         gameState(GameState.STARTING)
 
-        getPlayers().forEach { player ->
-            PlayerUtility.stopBlackout(player)
+        val tpFuture = tpToStart()
 
+        CompletableFuture.allOf(tpFuture).thenAccept {
+            val tp = tpFuture.get()
+
+            if(tp) {
+                getPlayers().forEach { player ->
+                    supplyKit(player).thenAccept { success ->
+                        if(success) {
+                            PlayerUtility.stopBlackout(player)
+                        } else {
+                            end(true)
+                        }
+                    }
+                }
+            } else {
+                end(true)
+            }
         }
-
     }
 
     // round stop
@@ -196,8 +280,14 @@ open class Game(
     }
 
     // game stop
-    fun end() {
+    fun end(error: Boolean = false) {
         gameState(GameState.ENDING)
+
+        if(error) {
+            Universum.instance.logger.warning("[Game] Game stopped due to an error.")
+            // alert players & admin
+        }
+
         unregister()
     }
 

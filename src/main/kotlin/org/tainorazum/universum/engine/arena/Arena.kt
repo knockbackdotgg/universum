@@ -10,17 +10,23 @@ class Arena(
     val templateIdentifier: String,
     val schematic: ByteArray,
     val centerLocation: Location,
-    val radius: Double
+    val radius: Double,
+    val xOffset: Double = 0.0
 ) {
 
-    private val locations = mutableListOf<Location>()
+    private var locations = mapOf<String, Location>()
 
-    init {
+    /**
+     * Unspoken rules of arena location names:
+     * Example:
+     * Name: 1.1
+     *       ^ ^
+     *   Team   player of team
+     * So, 1.1 = First player of team 1
+     */
 
-    }
-
-    fun getLocations(): CompletableFuture<List<Location>> {
-        val future = CompletableFuture<List<Location>>()
+    fun getLocations(): CompletableFuture<Map<String, Location>> {
+        val future = CompletableFuture<Map<String, Location>>()
 
         if (locations.isNotEmpty()) {
             future.complete(locations)
@@ -29,16 +35,21 @@ class Arena(
 
         Universum.adbm.getArenaLocations(templateIdentifier).thenAccept { locMap ->
             if (locMap != null) {
-                val fetchedLocations = locMap.values.toList()
-                locations.addAll(fetchedLocations)
+                // Apply the arena's X offset and ensure world matches instance world
+                locations = locMap.mapValues { (_, loc) ->
+                    loc.clone().apply {
+                        x += xOffset
+                        world = centerLocation.world
+                    }
+                }
                 future.complete(locations)
             } else {
-                future.complete(emptyList())
+                future.complete(emptyMap())
             }
         }.exceptionally { ex ->
             Universum.instance.logger.severe("[Arena] Failed to load locations for $templateIdentifier:")
             ex.printStackTrace()
-            future.complete(emptyList())
+            future.complete(emptyMap())
             null
         }
 
@@ -56,6 +67,4 @@ class Arena(
         val dz = loc.z - centerLocation.z
         return (dx * dx + dy * dy + dz * dz) <= (radius * radius)
     }
-
-
 }
