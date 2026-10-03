@@ -9,11 +9,11 @@ enum class Allowed(
 
     DEFAULT(null, "universum.allowed.default"), // player rank
 
-    SUPPORTER(null, "universum.allowed.supporter"), // player rank
+    PAID1(null, "universum.allowed.paid1"), // player rank
 
-    PREMIUM(null, "universum.allowed.premium"), // player rank
+    PAID2(null, "universum.allowed.paid2"), // player rank
 
-    PRO(null, "universum.allowed.pro"), // player rank
+    PAID3(null, "universum.allowed.paid3"), // player rank
 
     STAFF(null, "universum.allowed.staff"), // staff rank
 

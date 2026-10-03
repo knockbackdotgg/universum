@@ -70,6 +70,7 @@ class ArenaManager {
         val available = availableArenas.firstOrNull { it.templateIdentifier == identifier }
         if (available != null) {
             availableArenas.remove(available)
+            activeArenas.add(available) // Move back to active list
             available.reset().thenAccept { success ->
                 Bukkit.getScheduler().runTask(Universum.instance, Runnable {
                     future.complete(if (success) available else null)
@@ -90,6 +91,7 @@ class ArenaManager {
 
     fun releaseArena(arena: Arena): CompletableFuture<Boolean> {
         return arena.reset().thenApply {
+            activeArenas.remove(arena)
             if (!availableArenas.contains(arena)) {
                 availableArenas.add(arena)
             }
@@ -107,12 +109,13 @@ class ArenaManager {
             return future
         }
 
-        val xOffset = activeArenas.size * arenaGap
+        // Account for both active and available arenas to ensure clean positional spacing
+        val xOffset = (activeArenas.size + availableArenas.size) * arenaGap
         val shiftedCenter = template.center.clone().apply {
             x += xOffset
         }
 
-        val arena = Arena(instanceId, template.id, template.schematic, shiftedCenter, template.radius)
+        val arena = Arena(instanceId, template.id, template.schematic, shiftedCenter, template.radius, xOffset)
 
         arena.reset().thenAccept { created ->
             if (created) {
@@ -145,7 +148,8 @@ class ArenaManager {
     }
 
     fun generateNextId(templateId: String): String {
-        val count = activeArenas.count { it.templateIdentifier == templateId } + 1
+        val count = (activeArenas.count { it.templateIdentifier == templateId } +
+                availableArenas.count { it.templateIdentifier == templateId }) + 1
         return "$templateId-$count"
     }
 
