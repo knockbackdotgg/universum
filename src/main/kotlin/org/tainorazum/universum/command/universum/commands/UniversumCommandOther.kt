@@ -9,6 +9,7 @@ import org.tainorazum.universum.engine.game.manager.fields.GameSettings
 import org.tainorazum.universum.engine.game.manager.fields.GameTeam
 import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.engine.kit.Kit
+import org.tainorazum.universum.engine.statistics.StatisticType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.redis.RedisManager
@@ -99,7 +100,7 @@ class UniversumCommandOther : UniversumCommandGeneral(UniversumCommandSub.OTHER)
     @Subcommand("other statistic")
     fun statistic(
         actor: BukkitCommandActor,
-        id: String,
+        id: StatisticType,
         gameType: GameType,
         @Suggest("true", "false") ranked: Boolean,
         @Suggest("1", "2", "3", "50", "100", "500") value: Double,

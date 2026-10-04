@@ -67,4 +67,9 @@ class Arena(
         val dz = loc.z - centerLocation.z
         return (dx * dx + dy * dy + dz * dz) <= (radius * radius)
     }
+
+    fun release(): CompletableFuture<Boolean> {
+        return Universum.arenaManager.releaseArena(this)
+    }
+
 }

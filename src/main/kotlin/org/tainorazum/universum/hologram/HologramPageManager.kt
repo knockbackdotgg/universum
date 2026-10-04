@@ -1,12 +1,13 @@
 package org.tainorazum.universum.hologram
 
 import org.tainorazum.universum.engine.game.manager.fields.GameType
+import org.tainorazum.universum.engine.statistics.StatisticType
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 data class HologramStatPage(
     val title: String,
-    val statIdentifier: String, // e.g. "kills"
+    val statIdentifier: StatisticType,
     val gameType: GameType? = null,
     val isRanked: Boolean = false
 )
@@ -16,18 +17,18 @@ object HologramRegistry {
     // Registry mapping Hologram ID -> List of Pages
     private val holograms = mapOf(
         "stats1" to listOf(
-            HologramStatPage("Top Kills Ranked", "kills", isRanked = true), // total
-            HologramStatPage("Top Deaths Ranked", "deaths", isRanked = true), // total
-            HologramStatPage("Top Wins Ranked", "wins", isRanked = true), // total
-            HologramStatPage("Top Losses Ranked", "losses", isRanked = true), // total
-            HologramStatPage("Top Elo Ranked", "elo", isRanked = true), // total
-            HologramStatPage("Top Coins", "coins", isRanked = true), // total
+            HologramStatPage("Top Kills Ranked", StatisticType.KILLS, isRanked = true), // total
+            HologramStatPage("Top Deaths Ranked", StatisticType.DEATHS, isRanked = true), // total
+            HologramStatPage("Top Wins Ranked", StatisticType.WINS, isRanked = true), // total
+            HologramStatPage("Top Losses Ranked", StatisticType.LOSSES, isRanked = true), // total
+            HologramStatPage("Top Elo Ranked", StatisticType.ELO, isRanked = true), // total
+            HologramStatPage("Top Coins", StatisticType.COINS, isRanked = true), // total
         ),
         "stats2" to listOf(
-            HologramStatPage("Top Kills Unranked", "kills", isRanked = false), // total
-            HologramStatPage("Top Deaths Unranked", "deaths", isRanked = false), // total
-            HologramStatPage("Top Wins Unranked", "wins", isRanked = false), // total
-            HologramStatPage("Top Losses Unranked", "losses", isRanked = false), // total
+            HologramStatPage("Top Kills Unranked", StatisticType.KILLS, isRanked = false), // total
+            HologramStatPage("Top Deaths Unranked", StatisticType.DEATHS, isRanked = false), // total
+            HologramStatPage("Top Wins Unranked", StatisticType.WINS, isRanked = false), // total
+            HologramStatPage("Top Losses Unranked", StatisticType.LOSSES, isRanked = false), // total
         )
     )
 

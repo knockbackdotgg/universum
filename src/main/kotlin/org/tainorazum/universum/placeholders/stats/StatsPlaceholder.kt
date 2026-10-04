@@ -4,6 +4,7 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
 import org.tainorazum.universum.engine.game.manager.fields.GameType
+import org.tainorazum.universum.engine.statistics.StatisticType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.utility.player.PlayerUtility
 import java.util.UUID
@@ -33,7 +34,7 @@ class StatsPlaceholder : PlaceholderExpansion() {
             val args = lowercaseParams.removePrefix("top_").split("_")
             if (args.size < 4) return null
 
-            val statIdentifier = args[0] // e.g., "kills", "deaths", "elo"
+            val statIdentifier = StatisticType.valueOf(args[0]) // e.g., "kills", "deaths", "elo"
             val rawGameType = args[1]    // e.g., "ffa", "boxing", "bridge"
             val isRanked = parseRanked(args[2]) // Parse "ranked"/"unranked" or "true"/"false"
             val positionIndex = (args[3].toIntOrNull() ?: 1) - 1 // Convert 1-indexed to 0-indexed
@@ -78,7 +79,7 @@ class StatsPlaceholder : PlaceholderExpansion() {
         val args = lowercaseParams.split("_")
         if (args.size < 3) return null
 
-        val statIdentifier = args[0] // e.g., "kills"
+        val statIdentifier = StatisticType.valueOf(args[0]) // e.g., "kills"
         val rawGameType = args[1]    // e.g., "boxing"
         val isRanked = parseRanked(args[2])
 
