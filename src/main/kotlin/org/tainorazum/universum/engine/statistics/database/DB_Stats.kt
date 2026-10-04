@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.sum
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.tainorazum.universum.engine.game.manager.fields.GameType
+import org.tainorazum.universum.engine.statistics.StatisticType
 import org.tainorazum.universum.utility.database.DatabaseUtil.dba
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 object DB_Stats : Table("statistics") {
 
-    val identifier = varchar("identifier", 100) // Clean statistic identifier (e.g. "kills", "deaths")
+    val identifier = enumerationByName<StatisticType>("identifier", 100) // Clean statistic identifier (e.g. "kills", "deaths")
     val gametype = enumerationByName<GameType>("gametype", 100)
     val ranked = bool("ranked").default(false)
 
@@ -29,14 +30,14 @@ object DB_Stats : Table("statistics") {
     override val primaryKey = PrimaryKey(identifier, gametype, ranked, uuid)
 
     // Cache: keep in-memory values and accumulate local deltas.
-    private data class StatsKey(val id: String, val gametype: GameType, val ranked: Boolean, val uuid: String)
+    private data class StatsKey(val id: StatisticType, val gametype: GameType, val ranked: Boolean, val uuid: String)
 
     private val cache = ConcurrentHashMap<StatsKey, Double>()
     private val pendingDeltas = mutableMapOf<StatsKey, Double>()
     private val pendingLock = Any()
 
     // Cache structure for Leaderboards
-    private data class LeaderboardKey(val id: String, val gametype: GameType, val ranked: Boolean)
+    private data class LeaderboardKey(val id: StatisticType, val gametype: GameType, val ranked: Boolean)
     data class LeaderboardEntry(val uuid: String, val value: Double)
 
     private data class CachedLeaderboard(
@@ -47,8 +48,8 @@ object DB_Stats : Table("statistics") {
     // Cache map for Top Leaderboards
     private val leaderboardCache = ConcurrentHashMap<LeaderboardKey, CachedLeaderboard>()
     private val leaderboardFetchLocks = ConcurrentHashMap<LeaderboardKey, Any>()
-    private val globalLeaderboardCache = ConcurrentHashMap<Pair<String, Boolean>, CachedLeaderboard>()
-    private val globalLeaderboardFetchLocks = ConcurrentHashMap<Pair<String, Boolean>, Any>()
+    private val globalLeaderboardCache = ConcurrentHashMap<Pair<StatisticType, Boolean>, CachedLeaderboard>()
+    private val globalLeaderboardFetchLocks = ConcurrentHashMap<Pair<StatisticType, Boolean>, Any>()
 
     // Scheduler to flush periodically.
     private var scheduler: ScheduledExecutorService? = null
@@ -57,7 +58,7 @@ object DB_Stats : Table("statistics") {
      * Read-through cache get. If not cached, reads from DB and caches result.
      */
     fun get(
-        id: String,
+        id: StatisticType,
         gameType: GameType,
         playerUuid: String,
         ranked: Boolean = false
@@ -91,7 +92,7 @@ object DB_Stats : Table("statistics") {
      * Set a statistic to an absolute value.
      */
     fun set(
-        id: String,
+        id: StatisticType,
         gameType: GameType,
         playerUuid: String,
         value: Double,
@@ -137,7 +138,7 @@ object DB_Stats : Table("statistics") {
      * Additive update: fast local update and record delta for periodic flush.
      */
     fun add(
-        id: String,
+        id: StatisticType,
         gameType: GameType,
         playerUuid: String,
         delta: Double,
@@ -158,7 +159,7 @@ object DB_Stats : Table("statistics") {
      * Gets the top players for a specific statistic and game type.
      */
     fun getTop(
-        id: String,
+        id: StatisticType,
         gameType: GameType,
         ranked: Boolean = false,
         limit: Int = 10,
@@ -235,7 +236,7 @@ object DB_Stats : Table("statistics") {
      * Gets the top global players across all game types for a specific ranked state.
      */
     fun getTopGlobal(
-        id: String,
+        id: StatisticType,
         ranked: Boolean = false,
         limit: Int = 10,
         cacheDurationMinutes: Long = 5L

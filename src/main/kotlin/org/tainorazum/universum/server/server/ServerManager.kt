@@ -53,6 +53,8 @@ class ServerManager {
 
     fun getServer(identifier: String) = servers.firstOrNull { it.identifier == identifier }
 
+    fun getLobbyServer() = DB_Server.getLobbyServer()
+
     private fun registerServer() {
         try {
             val identifier = Universum.instance.config.getString("server.identifier")!!

@@ -1,11 +1,13 @@
 package org.tainorazum.universum.engine.game.games.parent
 
+import gg.flyte.twilight.scheduler.delay
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.scoreboard.Team
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.engine.arena.Arena
@@ -16,6 +18,9 @@ import org.tainorazum.universum.engine.game.manager.fields.GameSpectator
 import org.tainorazum.universum.engine.game.manager.fields.GameState
 import org.tainorazum.universum.engine.game.manager.fields.GameTeam
 import org.tainorazum.universum.engine.kit.Kit
+import org.tainorazum.universum.engine.statistics.StatisticType
+import org.tainorazum.universum.engine.statistics.StatisticsManager
+import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.network.manager.NetworkPlayerManager
 import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Colours
@@ -39,6 +44,8 @@ open class Game(
 
     private val spectators = mutableListOf<GameSpectator>()
 
+    private val stats = StatisticsManager
+
     init {
         register()
         prepare()
@@ -59,6 +66,25 @@ open class Game(
     //
     // events
     //
+
+    override fun onPlayerQuit(event: PlayerQuitEvent) {
+        val p = event.player
+
+        if(teams.size < 2) {
+
+            // 1v1
+            if(getPlayers().size == 2) {
+                val winnerTeam = getOpponentTeams(p)
+                end(winner = winnerTeam.firstOrNull())
+            }
+            else {
+                // game continues
+                removePlayer(p)
+            }
+
+        }
+
+    }
 
     override fun onPlayerJoin(event: PlayerJoinEvent) {
         val p = event.player
@@ -121,6 +147,32 @@ open class Game(
         return uuids
     }
 
+    fun getOpponentTeams(player: Player): List<GameTeam?> {
+        val opponents = mutableListOf<GameTeam>()
+
+        teams.forEach { team ->
+            if(!team.uuids.contains(player.uniqueId)) {
+                opponents.add(team)
+            }
+        }
+        return opponents
+    }
+
+    fun getOpponentTeams(team: GameTeam): List<GameTeam?> {
+        val opponents = mutableListOf<GameTeam>()
+
+        teams.forEach { t ->
+            if(t != team) {
+                opponents.add(team)
+            }
+        }
+        return opponents
+    }
+
+    fun getTeam(player: Player): GameTeam? {
+        return teams.find { team -> team.uuids.contains(player.uniqueId) }
+    }
+
     fun getTeamPlayers(id: String): List<Player> {
         val players = ArrayList<Player>()
 
@@ -132,6 +184,10 @@ open class Game(
             }
         }
         return players
+    }
+
+    fun removePlayer(player: Player) {
+        teams.find { team -> team.uuids.contains(player.uniqueId) }?.uuids?.remove(player.uniqueId)
     }
 
     //
@@ -264,12 +320,12 @@ open class Game(
                         if(success) {
                             PlayerUtility.stopBlackout(player)
                         } else {
-                            end(true)
+                            end(error = true)
                         }
                     }
                 }
             } else {
-                end(true)
+                end(error = true)
             }
         }
     }
@@ -280,15 +336,41 @@ open class Game(
     }
 
     // game stop
-    fun end(error: Boolean = false) {
+    fun end(winner: GameTeam? = null, error: Boolean = false) {
         gameState(GameState.ENDING)
 
+        // statistics
+        if(winner != null) {
+            getTeamPlayers(winner.id).forEach { player ->
+                stats.add(StatisticType.WINS, gameType, player.uniqueId, 1.0, gameSettings.isRanked)
+            }
+            getOpponentTeams(winner).forEach { team ->
+                if(team != null) {
+                    getTeamPlayers(team.id).forEach { player ->
+                        stats.add(StatisticType.LOSSES, gameType, player.uniqueId, 1.0, gameSettings.isRanked)
+                    }
+                }
+            }
+        }
+
+        // error
         if(error) {
             Universum.instance.logger.warning("[Game] Game stopped due to an error.")
             // alert players & admin
         }
 
-        unregister()
+        // tp back to lobby
+        delay(20*5) {
+            getPlayers().forEach { player ->
+                NetworkPlayerManager.sendPlayerToLobby(player.uniqueId)
+            }
+        }
+
+        delay(20*1) {
+            unregister()
+            arena.release()
+        }
+
     }
 
 }

@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture
 object DB_Server : Table("servers") {
 
     val identifier = varchar("identifier", 255)
-    val type = varchar("type", 255)
+    val type = enumerationByName<ServerType>("type", 255)
     val public = bool("public")
     val online = bool("online")
 
@@ -33,7 +33,7 @@ object DB_Server : Table("servers") {
             transaction {
                 DB_Server.upsert {
                     it[DB_Server.identifier] = id
-                    it[DB_Server.type] = type.name
+                    it[DB_Server.type] = type
 
                     it[DB_Server.public] = coalesce(DB_Server.public, booleanLiteral(true))
                     it[DB_Server.online] = coalesce(DB_Server.online, booleanLiteral(true))
@@ -70,7 +70,7 @@ object DB_Server : Table("servers") {
                 }
                 DB_Server.insert {
                     it[DB_Server.identifier] = id
-                    it[DB_Server.type] = type.name
+                    it[DB_Server.type] = type
                     it[DB_Server.public] = public
                     it[DB_Server.online] = online
                 }
@@ -94,7 +94,27 @@ object DB_Server : Table("servers") {
                     .map {
                         Server(
                             it[identifier],
-                            ServerType.valueOf(it[type])
+                            it[type]
+                        )
+                    }
+                    .singleOrNull()
+            }
+        }
+    }
+
+    fun getLobbyServer(): CompletableFuture<Server?> {
+        return dba {
+            transaction {
+                DB_Server.selectAll()
+                    .where {
+                        type eq ServerType.LOBBY
+                        public eq true
+                        online eq true
+                    }
+                    .map {
+                        Server(
+                            it[identifier],
+                            it[type]
                         )
                     }
                     .singleOrNull()
@@ -138,7 +158,7 @@ object DB_Server : Table("servers") {
                 } else {
                     DB_Server.insert {
                         it[identifier] = id
-                        it[type] = Universum.server.type.name
+                        it[type] = Universum.server.type
                         it[public] = bool
                         it[online] = true
                     }

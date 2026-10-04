@@ -4,6 +4,7 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
 import org.tainorazum.universum.coins.database.DB_Coins
+import org.tainorazum.universum.engine.statistics.StatisticType
 import org.tainorazum.universum.engine.statistics.database.DB_Stats
 import org.tainorazum.universum.hologram.HologramPageManager
 import org.tainorazum.universum.hologram.HologramRegistry
@@ -58,7 +59,7 @@ class HoloStatsPlaceholder : PlaceholderExpansion() {
 
         // Trigger a background refresh if cache is missing or expired
         if ((cached == null || now - cached.first > cacheTtlMs) && pendingQueries.add(cacheKey)) {
-            val future = if (activePageConfig.statIdentifier.equals("coins", ignoreCase = true)) {
+            val future = if (activePageConfig.statIdentifier == StatisticType.COINS) {
                 DB_Coins.getTopCoins(10)
             } else if (activePageConfig.gameType != null) {
                 DB_Stats.getTop(

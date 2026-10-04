@@ -13,6 +13,7 @@ import org.bukkit.event.player.PlayerQuitEvent
 import org.tainorazum.universum.Universum
 import org.tainorazum.universum.chat.ChatMessage
 import org.tainorazum.universum.cosmetic.database.DB_PlayerCosmetics
+import org.tainorazum.universum.engine.game.manager.fields.GameRequest
 import org.tainorazum.universum.network.NetworkPlayer
 import org.tainorazum.universum.network.NetworkPlayerEvent
 import org.tainorazum.universum.punishment.database.DB_Punishments
@@ -22,6 +23,7 @@ import org.tainorazum.universum.utility.player.PlayerUtility
 import org.tainorazum.universum.utility.text.Messages
 import org.tainorazum.universum.utility.text.Messages.replace
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 data class ServerMessage(
@@ -155,6 +157,18 @@ object NetworkPlayerManager {
             targetServer = targetServer
         )
         RedisManager.publish(PLAYER_SEND_CHANNEL, gson.toJson(payload))
+    }
+
+    fun sendPlayerToLobby(playerUuid: UUID): CompletableFuture<Boolean> {
+        val future = CompletableFuture<Boolean>()
+
+        Universum.serverManager.getLobbyServer().thenAccept { lobby ->
+            if(lobby != null) {
+                sendPlayer(playerUuid, lobby.identifier)
+            } else future.complete(false)
+        }
+
+        return future
     }
 
     fun attemptServerMessage(uuid: UUID, message: Component) {
