@@ -250,31 +250,31 @@ open class Game(
     fun tpToStart(): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
 
-        arena.getLocations().thenAccept { locationMap ->
-            Bukkit.getScheduler().runTask(Universum.instance, Runnable {
-                try {
-                    teams.forEach { team ->
-                        val players = getTeamPlayers(team.id)
+        arena.getLocations().thenCompose { locationMap ->
+            val teleportFutures = mutableListOf<CompletableFuture<Boolean>>()
 
-                        players.forEachIndexed { index, player ->
-                            val playerNumber = index + 1
-                            val key = "${team.id}.$playerNumber"
-                            val location = locationMap[key]
+            teams.forEach { team ->
+                team.uuids.forEachIndexed { index, uuid ->
+                    val player = Bukkit.getPlayer(uuid) ?: return@forEachIndexed
+                    val key = "${team.id}.${index + 1}"
+                    val location = locationMap[key]
 
-                            if (location != null) {
-                                player.teleport(location)
-                            } else {
-                                Universum.instance.logger.warning("[Game] Missing start location for key: $key")
-                            }
-                        }
+                    if (location != null) {
+                        teleportFutures.add(player.teleportAsync(location))
+                    } else {
+                        Universum.instance.logger.warning("[Game] Missing start location for key: $key")
                     }
-                    future.complete(true)
-                } catch (e: Exception) {
-                    Universum.instance.logger.severe("[Game] Error during teleportation: ${e.message}")
-                    e.printStackTrace()
-                    future.complete(false)
                 }
-            })
+            }
+
+            if (teleportFutures.isEmpty()) {
+                CompletableFuture.completedFuture(true)
+            } else {
+                // wait for all player teleports to complete before completing tpToStart()
+                CompletableFuture.allOf(*teleportFutures.toTypedArray()).thenApply {
+                    teleportFutures.all { it.join() }
+                }
+            }
         }.exceptionally { throwable ->
             Universum.instance.logger.severe("[Game] Failed to fetch arena locations: ${throwable.message}")
             future.complete(false)
