@@ -364,11 +364,11 @@ open class Game(
             getPlayers().forEach { player ->
                 NetworkPlayerManager.sendPlayerToLobby(player.uniqueId)
             }
-        }
 
-        delay(20*1) {
-            unregister()
-            arena.release()
+            delay(20*1) {
+                unregister()
+                arena.release()
+            }
         }
 
     }

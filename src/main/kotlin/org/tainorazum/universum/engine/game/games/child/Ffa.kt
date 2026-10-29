@@ -8,7 +8,7 @@ import org.tainorazum.universum.engine.game.manager.fields.GameTeam
 import org.tainorazum.universum.engine.game.manager.fields.GameType
 import org.tainorazum.universum.engine.kit.Kit
 
-class Ffa(
+class FFA(
 
     override val arena: Arena,
     override val teams: List<GameTeam>,
